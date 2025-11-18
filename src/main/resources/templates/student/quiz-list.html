@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'student-take-quiz')}">
+<head>
+    <title>Available Quizzes</title>
+</head>
+<body>
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Available Quizzes</h1>
+
+    <div th:if="${quizzes.isEmpty()}" class="text-center p-6 bg-white rounded-lg shadow-lg">
+        <p class="text-gray-600">No quizzes are available right now. Check back later!</p>
+    </div>
+
+    <div th:unless="${quizzes.isEmpty()}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div th:each="quiz : ${quizzes}" class="bg-white border border-gray-200 rounded-lg shadow-md p-6 flex flex-col justify-between">
+            <div>
+                <h2 class="text-xl font-semibold text-gray-800" th:text="${quiz.title}">Quiz Title</h2>
+                <p class="text-sm text-gray-500 bg-purple-100 text-purple-800 inline-block px-2 py-0.5 rounded-full mt-2" th:text="${quiz.subject}">Subject</p>
+                <p class="text-gray-600 mt-2" th:text="'By: ' + ${quiz.teacher.fullName}">by Teacher</p>
+                <p class="text-gray-600 mt-1" th:text="${quiz.questions.size()} + ' Questions'">0 Questions</p>
+            </div>
+            <div class="mt-4 border-t pt-4">
+                <a th:href="@{/student/quiz/{id}(id=${quiz.id})}" class="w-full text-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg">
+                    Take Quiz
+                </a>
+            </div>
+        </div>
+    </div>
+</main>
+</body>
+</html>

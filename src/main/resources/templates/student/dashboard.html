@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'student-dashboard')}">
+<head>
+    <title>Student Dashboard</title>
+</head>
+<body>
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Your Dashboard</h1>
+    <p class="text-gray-700">This is the student-only area. Here you can take assigned quizzes and track your performance.</p>
+
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+            <h2 class="text-xl font-semibold text-green-800">Quizzes to Take</h2>
+            <p class="text-green-700 mt-2">View all available quizzes.</p>
+            <a th:href="@{/student/quizzes}" class="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg">View Quizzes</a>
+        </div>
+        <div class="bg-purple-50 p-6 rounded-lg border border-purple-200">
+            <h2 class="text-xl font-semibold text-purple-800">My Performance</h2>
+            <p class="text-purple-700 mt-2">Track your scores and review past attempts.</p>
+            <a th:href="@{/student/performance}" class="inline-block mt-4 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg">View Performance</a>
+        </div>
+    </div>
+</main>
+</body>
+</html>

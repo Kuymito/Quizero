@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'admin-dashboard')}">
+<head>
+    <title>Admin Dashboard</title>
+</head>
+<body>
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin Control Panel</h1>
+    <p class="text-gray-700">This is the admin-only area. From here you can manage all users, quizzes, and subjects.</p>
+    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+            <h2 class="text-xl font-semibold text-blue-800">Manage Users</h2>
+            <p class="text-blue-700 mt-2">Add, edit, or remove teachers and students.</p>
+            <a th:href="@{/admin/users}" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">Manage Users</a>
+        </div>
+        <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+            <h2 class="text-xl font-semibold text-green-800">Manage All Quizzes</h2>
+            <p class="text-green-700 mt-2">View and delete any quiz from any teacher.</p>
+            <a th:href="@{/admin/quizzes}" class="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg">Manage Quizzes</a>
+        </div>
+    </div>
+</main>
+</body>
+</html>

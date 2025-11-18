@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:fragment="layout(title, content, activePage)">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${title} + ' - Quiz App'">Quiz App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/heroicons/2.0.16/24/solid/hero-icons.min.css" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+<div class="flex h-screen bg-gray-100">
+
+    <div class="w-64 bg-gray-800 text-white shadow-lg flex flex-col">
+
+        <div class="p-6 text-2xl font-bold border-b border-gray-700">
+            Quiz App
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2">
+
+            <div sec:authorize="hasRole('ROLE_ADMIN')">
+                <a th:href="@{/admin/dashboard}"
+                   th:classappend="${activePage == 'admin-dashboard'} ? 'bg-gray-900' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Dashboard
+                </a>
+                <a th:href="@{/admin/users}"
+                   th:classappend="${activePage == 'admin-users'} ? 'bg-gray-900' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Manage Users
+                </a>
+                <a th:href="@{/admin/quizzes}"
+                   th:classappend="${activePage == 'admin-quizzes'} ? 'bg-gray-900' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Manage Quizzes
+                </a>
+            </div>
+
+            <div sec:authorize="hasRole('ROLE_TEACHER')">
+                <a th:href="@{/teacher/dashboard}"
+                   th:classappend="${activePage == 'teacher-dashboard'} ? 'bg-blue-700' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Dashboard
+                </a>
+                <a th:href="@{/teacher/quizzes}"
+                   th:classappend="${activePage == 'teacher-my-quizzes'} ? 'bg-blue-700' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    My Quizzes
+                </a>
+                <a th:href="@{/teacher/quiz/new}"
+                   th:classappend="${activePage == 'teacher-create-quiz'} ? 'bg-blue-700' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Create New Quiz
+                </a>
+            </div>
+
+            <div sec:authorize="hasRole('ROLE_STUDENT')">
+                <a th:href="@{/student/dashboard}"
+                   th:classappend="${activePage == 'student-dashboard'} ? 'bg-purple-700' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Dashboard
+                </a>
+                <a th:href="@{/student/quizzes}"
+                   th:classappend="${activePage == 'student-take-quiz'} ? 'bg-purple-700' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    Take a Quiz
+                </a>
+                <a th:href="@{/student/performance}"
+                   th:classappend="${activePage == 'student-performance'} ? 'bg-purple-700' : 'hover:bg-gray-700'"
+                   class="block py-2.5 px-4 rounded-lg transition duration-200">
+                    My Performance
+                </a>
+            </div>
+        </nav>
+
+        <div class="p-4 border-t border-gray-700">
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="w-full text-left bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded-lg">
+                    Logout
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <header class="bg-white shadow-md p-4 flex justify-between items-center">
+            <h1 class="text-xl font-semibold text-gray-800" th:text="${title}">Page Title</h1>
+            <span class="text-gray-700">
+                Welcome, <strong sec:authentication="name" class="font-medium">User</strong>!
+                (<span sec:authentication="principal.authorities[0]" class="text-sm text-gray-500">ROLE</span>)
+            </span>
+        </header>
+
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-6 md:p-10">
+            <div th:if="${success}" class="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+                <strong th:text="${success}"></strong>
+            </div>
+            <div th:if="${error}" class="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <strong th:text="${error}"></strong>
+            </div>
+            <div th:replace="${content}">
+            </div>
+        </main>
+    </div>
+</div>
+</body>
+</html>

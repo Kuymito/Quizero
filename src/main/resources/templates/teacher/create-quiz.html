@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
+      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'teacher-create-quiz')}">
+<head>
+    <title>Create New Quiz</title>
+</head>
+<body>
+
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Create a New Quiz</h1>
+
+    <form th:action="@{/teacher/quiz/create}" method="post" id="quizForm" class="space-y-8 bg-white p-8 rounded-xl shadow-lg">
+        <div class="p-6 bg-gray-50 rounded-lg border border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Quiz Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="quizTitle" class="block text-sm font-medium text-gray-700">Quiz Title</label>
+                    <input type="text" id="quizTitle" name="quizTitle" required
+                           class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="quizSubject" class="block text-sm font-medium text-gray-700">Subject</label>
+                    <input type="text" id="quizSubject" name="quizSubject" required
+                           class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+        </div>
+
+        <div id="questionsContainer" class="space-y-6">
+        </div>
+
+        <div class="flex justify-between items-center border-t border-gray-200 pt-6">
+            <button type="button" id="addQuestionBtn"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">
+                Add Question
+            </button>
+            <button type="submit"
+                    class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg">
+                Save Quiz
+            </button>
+        </div>
+    </form>
+</main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const questionsContainer = document.getElementById('questionsContainer');
+        const addQuestionBtn = document.getElementById('addQuestionBtn');
+        let questionIndex = 0;
+
+        // Function to create a new option field
+        const createOptionNode = (qIndex, oIndex) => {
+            const optionDiv = document.createElement('div');
+            optionDiv.className = 'flex items-center space-x-2';
+
+            const radioInput = document.createElement('input');
+            radioInput.type = 'radio';
+            radioInput.name = `questions[${qIndex}].correctOption`;
+            radioInput.value = oIndex;
+            radioInput.required = true;
+            radioInput.className = 'form-radio h-5 w-5 text-blue-600';
+
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.name = `questions[${qIndex}].options[${oIndex}].text`;
+            textInput.placeholder = `Option ${oIndex + 1}`;
+            textInput.required = true;
+            textInput.className = 'block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm';
+
+            optionDiv.appendChild(radioInput);
+            optionDiv.appendChild(textInput);
+            return optionDiv;
+        };
+
+        // Function to add a new question block
+        const addQuestion = () => {
+            const qIndex = questionIndex++;
+
+            const questionBlock = document.createElement('div');
+            questionBlock.className = 'p-6 bg-white rounded-lg border border-gray-300 shadow-sm';
+            questionBlock.setAttribute('data-question-index', qIndex);
+
+            let innerHTML = `
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Question ${qIndex + 1}</h3>
+
+                    <label for="question-${qIndex}" class="block text-sm font-medium text-gray-700">Question Text</label>
+                    <textarea id="question-${qIndex}" name="questions[${qIndex}].text" rows="2" required
+                              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"></textarea>
+
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Options (select the correct answer)</label>
+                        <div class="options-container space-y-3">
+                            </div>
+                        <button type="button" class="add-option-btn mt-3 text-sm text-blue-600 hover:text-blue-800">+ Add Option</button>
+                    </div>
+                `;
+
+            questionBlock.innerHTML = innerHTML;
+            const optionsContainer = questionBlock.querySelector('.options-container');
+            let optionIndex = 0;
+
+            // Function to add a new option to this question
+            const addOption = () => {
+                const oIndex = optionIndex++;
+                optionsContainer.appendChild(createOptionNode(qIndex, oIndex));
+            };
+
+            // Add option button event listener
+            questionBlock.querySelector('.add-option-btn').addEventListener('click', addOption);
+
+            // Add 4 default options
+            for (let i = 0; i < 4; i++) {
+                addOption();
+            }
+
+            questionsContainer.appendChild(questionBlock);
+        };
+
+        // Add one question by default
+        addQuestion();
+
+        // Event listener for the main "Add Question" button
+        addQuestionBtn.addEventListener('click', addQuestion);
+    });
+</script>
+</body>
+</html>
