@@ -17,7 +17,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects; // Import Objects for comparison
+import java.util.Objects;
 
 @Controller
 @RequestMapping("/teacher")
@@ -35,7 +35,6 @@ public class TeacherController {
     @Autowired
     private OptionRepository optionRepository;
 
-    // NEW: Added repository to fetch quiz attempts
     @Autowired
     private QuizAttemptRepository quizAttemptRepository;
 
@@ -44,25 +43,26 @@ public class TeacherController {
         return "teacher/dashboard";
     }
 
+    // --- THIS IS THE CORRECT METHOD FOR THIS CONTROLLER ---
+    /**
+     * Displays the list of quizzes created by the currently logged-in teacher.
+     */
     @GetMapping("/quizzes")
-    public String listQuizzes(Model model) {
-        // FIX: Use the new EAGER fetch method to load questions
-        List<Quiz> quizzes = quizRepository.findAllAndFetchQuestions();
+    public String myQuizzes(Model model, Authentication authentication) {
+        User teacher = getLoggedInUser(authentication);
+        // FIX: Use the EAGER fetch method to load questions
+        List<Quiz> quizzes = quizRepository.findByTeacherAndFetchQuestions(teacher);
         model.addAttribute("quizzes", quizzes);
-        return "student/quiz-list";
+        // FIX: Point to the correct teacher template
+        return "teacher/my-quizzes";
     }
 
-    /**
-     * Displays the specific quiz for the student to take.
-     */
-    @GetMapping("/quiz/{id}")
-    public String takeQuiz(@PathVariable Long id, Model model) {
-        // FIX: Use the new EAGER fetch method to load questions
-        Quiz quiz = quizRepository.findByIdAndFetchQuestions(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
-        model.addAttribute("quiz", quiz);
-        return "student/take-quiz";
-    }
+    // --- THESE METHODS WERE INCORRECTLY PASTED HERE AND HAVE BEEN REMOVED ---
+    // @GetMapping("/quizzes")
+    // public String listQuizzes(Model model) { ... }
+    // @GetMapping("/quiz/{id}")
+    // public String takeQuiz(@PathVariable Long id, Model model) { ... }
+
 
     @GetMapping("/quiz/new")
     public String createQuizForm(Model model) {
@@ -77,7 +77,7 @@ public class TeacherController {
         quiz.setTitle(request.getParameter("quizTitle"));
         quiz.setSubject(request.getParameter("quizSubject"));
         quiz.setTeacher(teacher);
-        quiz.setCreator(teacher);
+        quiz.setCreator(teacher); // This fix was correct
         Quiz savedQuiz = quizRepository.save(quiz);
 
         Map<String, String[]> parameterMap = request.getParameterMap();
@@ -106,16 +106,12 @@ public class TeacherController {
         return "redirect:/teacher/quizzes";
     }
 
-    /**
-     * NEW: Allows a Teacher to delete one of their own quizzes.
-     */
     @GetMapping("/quiz/delete/{id}")
     public String deleteQuiz(@PathVariable Long id, Authentication authentication, RedirectAttributes redirectAttributes) {
         User teacher = getLoggedInUser(authentication);
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
-        // Security Check: Ensure the teacher owns this quiz
         if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only delete your own quizzes.");
             return "redirect:/teacher/quizzes";
@@ -126,25 +122,23 @@ public class TeacherController {
         return "redirect:/teacher/quizzes";
     }
 
-    /**
-     * NEW: Allows a Teacher to see all attempts for a specific quiz.
-     */
     @GetMapping("/quiz/results/{id}")
     public String viewQuizResults(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
         User teacher = getLoggedInUser(authentication);
-        Quiz quiz = quizRepository.findById(id)
+        // FIX: Use EAGER fetch to load questions for the title/subject
+        Quiz quiz = quizRepository.findByIdAndFetchQuestions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
-        // Security Check: Ensure the teacher owns this quiz
         if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only view results for your own quizzes.");
             return "redirect:/teacher/quizzes";
         }
 
+        // This repository call is fine, as the template only needs attempt.student.fullName
         List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
         model.addAttribute("quiz", quiz);
         model.addAttribute("attempts", attempts);
-        return "teacher/quiz-results"; // Needs a new template: teacher/quiz-results.html
+        return "teacher/quiz-results";
     }
 
     private User getLoggedInUser(Authentication authentication) {

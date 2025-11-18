@@ -37,6 +37,7 @@ public class AdminController {
         return "admin/manage-users";
     }
 
+    // ... (deleteUser method is unchanged) ...
     @GetMapping("/users/delete/{id}")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes, Authentication authentication) {
         String loggedInUsername = authentication.getName();
@@ -53,16 +54,16 @@ public class AdminController {
         return "redirect:/admin/users";
     }
 
+
     @GetMapping("/quizzes")
     public String manageQuizzes(Model model) {
-        List<Quiz> quizzes = quizRepository.findAll();
+        // FIX: Use new query to fetch teacher for each quiz
+        List<Quiz> quizzes = quizRepository.findAllAndFetchQuestionsAndTeacher();
         model.addAttribute("quizzes", quizzes);
         return "admin/manage-quizzes";
     }
 
-    /**
-     * NEW: Allows an Admin to delete any quiz.
-     */
+    // ... (deleteQuiz method is unchanged) ...
     @GetMapping("/quiz/delete/{id}")
     public String deleteQuiz(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         Quiz quiz = quizRepository.findById(id)

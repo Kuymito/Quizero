@@ -13,29 +13,32 @@ import java.util.Optional;
 @Repository
 public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
-    // Original query: Find all quizzes created by a specific teacher
     List<Quiz> findByTeacher(User teacher);
 
-    // --- ADD THE FOLLOWING METHODS ---
-
     /**
-     * NEW: Finds quizzes by teacher and EAGERLY loads the questions
-     * to prevent LazyInitializationException in the template.
+     * Finds quizzes by teacher and EAGERLY loads the questions
+     * (for teacher/my-quizzes).
      */
-    @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.teacher = :teacher")
+    @Query("SELECT DISTINCT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.teacher = :teacher")
     List<Quiz> findByTeacherAndFetchQuestions(@Param("teacher") User teacher);
 
     /**
-     * NEW: Finds all quizzes and EAGERLY loads the questions
-     * to prevent LazyInitializationException in the student quiz list.
-     * Use DISTINCT to avoid duplicates from the join.
+     * Finds all quizzes and EAGERLY loads questions AND teacher
+     * (for student/quiz-list AND admin/manage-quizzes).
      */
-    @Query("SELECT DISTINCT q FROM Quiz q LEFT JOIN FETCH q.questions")
-    List<Quiz> findAllAndFetchQuestions();
+    @Query("SELECT DISTINCT q FROM Quiz q LEFT JOIN FETCH q.questions LEFT JOIN FETCH q.teacher")
+    List<Quiz> findAllAndFetchQuestionsAndTeacher();
 
     /**
-     * NEW: Finds a single quiz by ID and EAGERLY loads the questions
-     * to prevent LazyInitializationException in the "take-quiz" page.
+     * Finds a single quiz by ID and EAGERLY loads questions AND options
+     * (for student/take-quiz and student/submit-quiz).
+     */
+    @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions qn LEFT JOIN FETCH qn.options WHERE q.id = :id")
+    Optional<Quiz> findByIdAndFetchQuestionsAndOptions(@Param("id") Long id);
+
+    /**
+     * Finds a single quiz by ID and EAGERLY loads questions
+     * (for teacher/quiz-results).
      */
     @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.id = :id")
     Optional<Quiz> findByIdAndFetchQuestions(@Param("id") Long id);

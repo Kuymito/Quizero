@@ -12,10 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/student")
@@ -46,14 +44,16 @@ public class StudentController {
 
     @GetMapping("/quizzes")
     public String listQuizzes(Model model) {
-        List<Quiz> quizzes = quizRepository.findAll();
+        // FIX: Use new query to fetch questions AND teacher
+        List<Quiz> quizzes = quizRepository.findAllAndFetchQuestionsAndTeacher();
         model.addAttribute("quizzes", quizzes);
         return "student/quiz-list";
     }
 
     @GetMapping("/quiz/{id}")
     public String takeQuiz(@PathVariable Long id, Model model) {
-        Quiz quiz = quizRepository.findById(id)
+        // FIX: Use new query to fetch questions AND options
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
         model.addAttribute("quiz", quiz);
         return "student/take-quiz";
@@ -65,11 +65,13 @@ public class StudentController {
                              Authentication authentication) {
 
         User student = getLoggedInUser(authentication);
-        Quiz quiz = quizRepository.findById(quizId)
+        // FIX: Use new query to fetch questions AND options
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
 
         int score = 0;
         Set<StudentAnswer> studentAnswers = new HashSet<>();
+        // This Set<Question> is now safe to access
         Set<Question> questions = quiz.getQuestions();
 
         QuizAttempt attempt = new QuizAttempt();
@@ -85,7 +87,10 @@ public class StudentController {
 
             if (selectedOptionIdStr != null) {
                 Long selectedOptionId = Long.parseLong(selectedOptionIdStr);
-                Option selectedOption = optionRepository.findById(selectedOptionId)
+                // We can safely find the option now
+                Option selectedOption = question.getOptions().stream()
+                        .filter(opt -> opt.getId().equals(selectedOptionId))
+                        .findFirst()
                         .orElseThrow(() -> new IllegalArgumentException("Invalid option Id:" + selectedOptionId));
 
                 StudentAnswer studentAnswer = new StudentAnswer();
@@ -105,43 +110,45 @@ public class StudentController {
         savedAttempt.setScore(score);
         quizAttemptRepository.save(savedAttempt);
 
-        // Redirect to the new details page for the attempt they just finished
         return "redirect:/student/attempt/" + savedAttempt.getId();
     }
 
     @GetMapping("/performance")
     public String viewPerformance(Model model, Authentication authentication) {
         User student = getLoggedInUser(authentication);
-        List<QuizAttempt> attempts = quizAttemptRepository.findByStudent(student);
+        // FIX: Use new query to fetch the quiz for each attempt
+        List<QuizAttempt> attempts = quizAttemptRepository.findByStudentAndFetchQuiz(student);
         model.addAttribute("attempts", attempts);
         return "student/performance";
     }
 
-    /**
-     * NEW: Displays the results of a single quiz attempt.
-     */
     @GetMapping("/attempt/{id}")
     public String viewAttemptDetails(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
         User student = getLoggedInUser(authentication);
-        QuizAttempt attempt = quizAttemptRepository.findById(id)
+        QuizAttempt attempt = quizAttemptRepository.findByIdAndFetchAllDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid attempt Id:" + id));
 
-        // Security Check: Ensure the student owns this attempt
+        // Security Check
         if (!Objects.equals(attempt.getStudent().getId(), student.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only view your own quiz attempts.");
             return "redirect:/student/performance";
         }
 
+        // --- FIX IS HERE ---
+        // Create a Map of (Question ID -> StudentAnswer)
+        // This moves the complex logic out of Thymeleaf.
+        Map<Long, StudentAnswer> studentAnswerMap = attempt.getStudentAnswers().stream()
+                .collect(Collectors.toMap(sa -> sa.getQuestion().getId(), sa -> sa));
+
         model.addAttribute("attempt", attempt);
-        // Note: The 'attempt' object already contains the set of 'studentAnswers'
-        // which contains the selected option. You will also need to
-        // load the 'question' and its 'options' in the template to show the correct answer.
-        return "student/attempt-details"; // Needs a new template: student/attempt-details.html
+        model.addAttribute("studentAnswerMap", studentAnswerMap); // <-- ADD THE MAP TO THE MODEL
+
+        return "student/attempt-details";
     }
 
     private User getLoggedInUser(Authentication authentication) {
         String username = authentication.getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: "+ username));
     }
 }
