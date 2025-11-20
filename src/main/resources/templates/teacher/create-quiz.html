@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
-      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'teacher-create-quiz')}">
+      th:replace="~{fragments/layout :: layout('Create Quiz', ~{::main}, 'teacher-create-quiz')}">
 <head>
     <title>Create New Quiz</title>
 </head>
@@ -48,7 +48,6 @@
             const addQuestionBtn = document.getElementById('addQuestionBtn');
             let questionIndex = 0;
 
-            // Function to create a new option field
             const createOptionNode = (qIndex, oIndex) => {
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'flex items-center space-x-2';
@@ -72,7 +71,6 @@
                 return optionDiv;
             };
 
-            // Function to add a new question block
             const addQuestion = () => {
                 const qIndex = questionIndex++;
 
@@ -99,16 +97,13 @@
                 const optionsContainer = questionBlock.querySelector('.options-container');
                 let optionIndex = 0;
 
-                // Function to add a new option to this question
                 const addOption = () => {
                     const oIndex = optionIndex++;
                     optionsContainer.appendChild(createOptionNode(qIndex, oIndex));
                 };
 
-                // Add option button event listener
                 questionBlock.querySelector('.add-option-btn').addEventListener('click', addOption);
 
-                // Add 4 default options
                 for (let i = 0; i < 4; i++) {
                     addOption();
                 }
@@ -116,10 +111,7 @@
                 questionsContainer.appendChild(questionBlock);
             };
 
-            // Add one question by default
             addQuestion();
-
-            // Event listener for the main "Add Question" button
             addQuestionBtn.addEventListener('click', addQuestion);
         });
     </script>

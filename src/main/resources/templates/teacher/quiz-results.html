@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'teacher-my-quizzes')}">
+      th:replace="~{fragments/layout :: layout('Quiz Results', ~{::main}, 'teacher-my-quizzes')}">
 <head>
     <title th:text="'Results: ' + ${quiz.title}">Quiz Results</title>
 </head>

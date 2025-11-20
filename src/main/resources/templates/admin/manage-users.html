@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
-      th:replace="~{fragments/layout :: layout(~{::title}, ~{::main}, 'admin-users')}">
+      th:replace="~{fragments/layout :: layout('Manage Users', ~{::main}, 'admin-users')}">
 <head>
     <title>Manage Users</title>
 </head>

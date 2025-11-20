@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Leaderboard', ~{::main}, 'student-leaderboard')}">
+<head>
+    <title>Leaderboard</title>
+</head>
+<body>
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Quiz Leaderboards</h1>
+    <p class="text-gray-600 mb-8">Select a quiz to see the top scorers.</p>
+
+    <div th:if="${quizzes.isEmpty()}" class="text-center p-6 bg-white rounded-lg shadow-lg">
+        <p class="text-gray-600">No quizzes available.</p>
+    </div>
+
+    <div th:unless="${quizzes.isEmpty()}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div th:each="quiz : ${quizzes}" class="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow p-6">
+            <div class="flex items-center justify-between mb-4">
+                <span class="bg-yellow-100 text-yellow-800 text-xs font-semibold px-2.5 py-0.5 rounded" th:text="${quiz.subject}">Subject</span>
+                <span class="text-gray-400 text-sm" th:text="${quiz.questions.size()} + ' Qs'">10 Qs</span>
+            </div>
+            <h2 class="text-xl font-bold text-gray-800 mb-2" th:text="${quiz.title}">Quiz Title</h2>
+            <p class="text-sm text-gray-500 mb-6" th:text="'Created by ' + ${quiz.teacher.fullName}">Teacher</p>
+
+            <a th:href="@{/student/leaderboard/{id}(id=${quiz.id})}"
+               class="block w-full text-center bg-white border-2 border-yellow-500 text-yellow-600 font-bold py-2 px-4 rounded-lg hover:bg-yellow-50 transition-colors">
+                View Rankings
+            </a>
+        </div>
+    </div>
+</main>
+</body>
+</html>

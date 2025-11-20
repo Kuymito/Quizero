@@ -4,6 +4,7 @@ import com.example.quizapp.model.*;
 import com.example.quizapp.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
@@ -44,17 +45,24 @@ public class StudentController {
 
     @GetMapping("/quizzes")
     public String listQuizzes(Model model) {
-        // FIX: Use new query to fetch questions AND teacher
         List<Quiz> quizzes = quizRepository.findAllAndFetchQuestionsAndTeacher();
         model.addAttribute("quizzes", quizzes);
         return "student/quiz-list";
     }
 
     @GetMapping("/quiz/{id}")
-    public String takeQuiz(@PathVariable Long id, Model model) {
-        // FIX: Use new query to fetch questions AND options
+    public String takeQuiz(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
+        User student = getLoggedInUser(authentication);
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
+
+        // 1. CHECK: Has the student already taken this quiz?
+        Optional<QuizAttempt> existingAttempt = quizAttemptRepository.findByStudentAndQuiz(student, quiz);
+        if (existingAttempt.isPresent()) {
+            redirectAttributes.addFlashAttribute("error", "You have already attempted this quiz.");
+            return "redirect:/student/attempt/" + existingAttempt.get().getId();
+        }
+
         model.addAttribute("quiz", quiz);
         return "student/take-quiz";
     }
@@ -62,16 +70,21 @@ public class StudentController {
     @PostMapping("/quiz/submit")
     public String submitQuiz(@RequestParam("quizId") Long quizId,
                              HttpServletRequest request,
-                             Authentication authentication) {
+                             Authentication authentication,
+                             RedirectAttributes redirectAttributes) {
 
         User student = getLoggedInUser(authentication);
-        // FIX: Use new query to fetch questions AND options
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
 
+        // 2. CHECK: Prevent double submission (if they used back button or hacks)
+        Optional<QuizAttempt> existingAttempt = quizAttemptRepository.findByStudentAndQuiz(student, quiz);
+        if (existingAttempt.isPresent()) {
+            return "redirect:/student/attempt/" + existingAttempt.get().getId();
+        }
+
         int score = 0;
         Set<StudentAnswer> studentAnswers = new HashSet<>();
-        // This Set<Question> is now safe to access
         Set<Question> questions = quiz.getQuestions();
 
         QuizAttempt attempt = new QuizAttempt();
@@ -87,7 +100,6 @@ public class StudentController {
 
             if (selectedOptionIdStr != null) {
                 Long selectedOptionId = Long.parseLong(selectedOptionIdStr);
-                // We can safely find the option now
                 Option selectedOption = question.getOptions().stream()
                         .filter(opt -> opt.getId().equals(selectedOptionId))
                         .findFirst()
@@ -116,7 +128,6 @@ public class StudentController {
     @GetMapping("/performance")
     public String viewPerformance(Model model, Authentication authentication) {
         User student = getLoggedInUser(authentication);
-        // FIX: Use new query to fetch the quiz for each attempt
         List<QuizAttempt> attempts = quizAttemptRepository.findByStudentAndFetchQuiz(student);
         model.addAttribute("attempts", attempts);
         return "student/performance";
@@ -128,27 +139,44 @@ public class StudentController {
         QuizAttempt attempt = quizAttemptRepository.findByIdAndFetchAllDetails(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid attempt Id:" + id));
 
-        // Security Check
         if (!Objects.equals(attempt.getStudent().getId(), student.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only view your own quiz attempts.");
             return "redirect:/student/performance";
         }
 
-        // --- FIX IS HERE ---
-        // Create a Map of (Question ID -> StudentAnswer)
-        // This moves the complex logic out of Thymeleaf.
         Map<Long, StudentAnswer> studentAnswerMap = attempt.getStudentAnswers().stream()
                 .collect(Collectors.toMap(sa -> sa.getQuestion().getId(), sa -> sa));
 
         model.addAttribute("attempt", attempt);
-        model.addAttribute("studentAnswerMap", studentAnswerMap); // <-- ADD THE MAP TO THE MODEL
+        model.addAttribute("studentAnswerMap", studentAnswerMap);
 
         return "student/attempt-details";
+    }
+
+    // --- LEADERBOARD FEATURES ---
+
+    @GetMapping("/leaderboard")
+    public String leaderboardList(Model model) {
+        List<Quiz> quizzes = quizRepository.findAllAndFetchQuestionsAndTeacher();
+        model.addAttribute("quizzes", quizzes);
+        return "student/leaderboard-list";
+    }
+
+    @GetMapping("/leaderboard/{quizId}")
+    public String leaderboardRankings(@PathVariable Long quizId, Model model) {
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
+
+        List<QuizAttempt> topAttempts = quizAttemptRepository.findTopAttempts(quiz, PageRequest.of(0, 10));
+
+        model.addAttribute("quiz", quiz);
+        model.addAttribute("topAttempts", topAttempts);
+        return "student/leaderboard-rankings";
     }
 
     private User getLoggedInUser(Authentication authentication) {
         String username = authentication.getName();
         return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: "+ username));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
     }
 }
