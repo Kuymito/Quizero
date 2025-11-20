@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       xmlns:sec="http://www.thymeleaf.org/extras/springsecurity6"
-      th:replace="~{fragments/layout :: layout('Create Quiz', ~{::main}, 'teacher-create-quiz')}">
+      th:replace="~{fragments/layout :: layout('Create Quiz', ~{::main}, 'teacher-dashboard')}">
 <head>
     <title>Create New Quiz</title>
 </head>
@@ -10,7 +10,8 @@
 <main>
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Create a New Quiz</h1>
 
-    <form th:action="@{/teacher/quiz/create}" method="post" id="quizForm" class="space-y-8 bg-white p-8 rounded-xl shadow-lg">
+    <form th:action="@{/teacher/class/{classId}/quiz/create(classId=${classId})}" method="post" id="quizForm" class="space-y-8 bg-white p-8 rounded-xl shadow-lg">
+
         <div class="p-6 bg-gray-50 rounded-lg border border-gray-200">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Quiz Details</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -48,6 +49,7 @@
             const addQuestionBtn = document.getElementById('addQuestionBtn');
             let questionIndex = 0;
 
+            // Function to create a new option field
             const createOptionNode = (qIndex, oIndex) => {
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'flex items-center space-x-2';
@@ -71,6 +73,7 @@
                 return optionDiv;
             };
 
+            // Function to add a new question block
             const addQuestion = () => {
                 const qIndex = questionIndex++;
 
@@ -97,13 +100,16 @@
                 const optionsContainer = questionBlock.querySelector('.options-container');
                 let optionIndex = 0;
 
+                // Function to add a new option to this question
                 const addOption = () => {
                     const oIndex = optionIndex++;
                     optionsContainer.appendChild(createOptionNode(qIndex, oIndex));
                 };
 
+                // Add option button event listener
                 questionBlock.querySelector('.add-option-btn').addEventListener('click', addOption);
 
+                // Add 4 default options
                 for (let i = 0; i < 4; i++) {
                     addOption();
                 }
@@ -111,7 +117,10 @@
                 questionsContainer.appendChild(questionBlock);
             };
 
+            // Add one question by default
             addQuestion();
+
+            // Event listener for the main "Add Question" button
             addQuestionBtn.addEventListener('click', addQuestion);
         });
     </script>

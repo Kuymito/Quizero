@@ -20,28 +20,64 @@ import java.util.stream.Collectors;
 @RequestMapping("/student")
 public class StudentController {
 
-    @Autowired
-    private QuizRepository quizRepository;
-
-    @Autowired
-    private QuizAttemptRepository quizAttemptRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private QuestionRepository questionRepository;
-
-    @Autowired
-    private OptionRepository optionRepository;
-
-    @Autowired
-    private StudentAnswerRepository studentAnswerRepository;
+    @Autowired private QuizRepository quizRepository;
+    @Autowired private QuizAttemptRepository quizAttemptRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private QuestionRepository questionRepository;
+    @Autowired private OptionRepository optionRepository;
+    @Autowired private StudentAnswerRepository studentAnswerRepository;
+    @Autowired private ClassroomRepository classroomRepository;
 
     @GetMapping("/dashboard")
-    public String studentDashboard() {
+    public String studentDashboard(Model model, Authentication authentication) {
+        User student = getLoggedInUser(authentication);
+        // Uses the new query that fetches the Teacher to prevent dashboard crash
+        List<Classroom> classes = classroomRepository.findByStudent(student);
+        model.addAttribute("classes", classes);
         return "student/dashboard";
     }
+
+    // --- JOIN CLASS ---
+    @GetMapping("/join")
+    public String joinClassForm() {
+        return "student/join-class";
+    }
+
+    @PostMapping("/join")
+    public String joinClass(@RequestParam("code") String code, Authentication authentication, RedirectAttributes redirectAttributes) {
+        User student = getLoggedInUser(authentication);
+
+        // FIX: Use 'findByCodeAndFetchStudents' to safely load the student list
+        Optional<Classroom> classroomOpt = classroomRepository.findByCodeAndFetchStudents(code);
+
+        if (classroomOpt.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Invalid class code.");
+            return "redirect:/student/join";
+        }
+
+        Classroom classroom = classroomOpt.get();
+
+        // Now this line won't crash because students are loaded
+        classroom.getStudents().add(student);
+        classroomRepository.save(classroom);
+
+        redirectAttributes.addFlashAttribute("success", "Joined " + classroom.getName() + " successfully!");
+        return "redirect:/student/dashboard";
+    }
+
+    // --- VIEW CLASS ---
+    @GetMapping("/class/{id}")
+    public String viewClass(@PathVariable Long id, Model model, Authentication authentication) {
+        User student = getLoggedInUser(authentication);
+        // Fetches quizzes and teacher to prevent crash on details page
+        Classroom classroom = classroomRepository.findByIdAndFetchQuizzes(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid class ID"));
+
+        model.addAttribute("classroom", classroom);
+        return "student/class-details";
+    }
+
+    // --- QUIZ METHODS ---
 
     @GetMapping("/quizzes")
     public String listQuizzes(Model model) {
@@ -56,7 +92,6 @@ public class StudentController {
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
-        // 1. CHECK: Has the student already taken this quiz?
         Optional<QuizAttempt> existingAttempt = quizAttemptRepository.findByStudentAndQuiz(student, quiz);
         if (existingAttempt.isPresent()) {
             redirectAttributes.addFlashAttribute("error", "You have already attempted this quiz.");
@@ -77,7 +112,6 @@ public class StudentController {
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
 
-        // 2. CHECK: Prevent double submission (if they used back button or hacks)
         Optional<QuizAttempt> existingAttempt = quizAttemptRepository.findByStudentAndQuiz(student, quiz);
         if (existingAttempt.isPresent()) {
             return "redirect:/student/attempt/" + existingAttempt.get().getId();

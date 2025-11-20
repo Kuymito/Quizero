@@ -1,7 +1,11 @@
 package com.example.quizapp.controller;
 
+import com.example.quizapp.model.Classroom;
 import com.example.quizapp.model.Quiz;
+import com.example.quizapp.model.QuizAttempt; // Import
 import com.example.quizapp.model.User;
+import com.example.quizapp.repository.ClassroomRepository;
+import com.example.quizapp.repository.QuizAttemptRepository; // Import
 import com.example.quizapp.repository.QuizRepository;
 import com.example.quizapp.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +29,12 @@ public class AdminController {
     @Autowired
     private QuizRepository quizRepository;
 
+    @Autowired
+    private ClassroomRepository classroomRepository;
+
+    @Autowired
+    private QuizAttemptRepository quizAttemptRepository; // Inject this
+
     @GetMapping("/dashboard")
     public String adminDashboard() {
         return "admin/dashboard";
@@ -37,7 +47,6 @@ public class AdminController {
         return "admin/manage-users";
     }
 
-    // ... (deleteUser method is unchanged) ...
     @GetMapping("/users/delete/{id}")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes, Authentication authentication) {
         String loggedInUsername = authentication.getName();
@@ -54,23 +63,40 @@ public class AdminController {
         return "redirect:/admin/users";
     }
 
-
     @GetMapping("/quizzes")
     public String manageQuizzes(Model model) {
-        // FIX: Use new query to fetch teacher for each quiz
         List<Quiz> quizzes = quizRepository.findAllAndFetchQuestionsAndTeacher();
         model.addAttribute("quizzes", quizzes);
         return "admin/manage-quizzes";
     }
 
-    // ... (deleteQuiz method is unchanged) ...
     @GetMapping("/quiz/delete/{id}")
     public String deleteQuiz(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         Quiz quiz = quizRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
+        // FIX: Delete attempts first to prevent DataIntegrityViolationException
+        List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
+        quizAttemptRepository.deleteAll(attempts);
+
+        // Now safe to delete the quiz
         quizRepository.delete(quiz);
+
         redirectAttributes.addFlashAttribute("success", "Quiz '" + quiz.getTitle() + "' deleted successfully.");
         return "redirect:/admin/quizzes";
+    }
+
+    @GetMapping("/classes")
+    public String manageClasses(Model model) {
+        List<Classroom> classes = classroomRepository.findAllAndFetchTeacher();
+        model.addAttribute("classes", classes);
+        return "admin/manage-classes";
+    }
+
+    @GetMapping("/class/delete/{id}")
+    public String deleteClass(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        classroomRepository.deleteById(id);
+        redirectAttributes.addFlashAttribute("success", "Class deleted successfully.");
+        return "redirect:/admin/classes";
     }
 }

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Manage Classes', ~{::main}, 'admin-classes')}">
+<head>
+    <title>Manage Classes</title>
+</head>
+<body>
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Manage All Classes</h1>
+
+    <div class="bg-white rounded-xl shadow-lg overflow-x-auto border border-gray-200">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Class Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teacher</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+            <tr th:each="cls : ${classes}">
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" th:text="${cls.id}">1</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" th:text="${cls.name}">Math 101</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono" th:text="${cls.code}">ABC12</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" th:text="${cls.teacher.fullName}">Mr. Teacher</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <a th:href="@{/admin/class/delete/{id}(id=${cls.id})}"
+                       onclick="return confirm('Are you sure? Deleting a class will also delete ALL quizzes inside it.');"
+                       class="text-red-600 hover:text-red-900">Delete</a>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+
+        <div th:if="${classes.isEmpty()}" class="p-6 text-center text-gray-500">
+            No classes found.
+        </div>
+    </div>
+</main>
+</body>
+</html>

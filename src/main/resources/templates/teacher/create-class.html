@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Create Class', ~{::main}, 'teacher-create-class')}">
+<head><title>Create Class</title></head>
+<body>
+<main class="max-w-lg mx-auto bg-white p-8 rounded-xl shadow-lg">
+  <h1 class="text-2xl font-bold text-gray-800 mb-6">Create a New Class</h1>
+  <form th:action="@{/teacher/class/create}" method="post">
+    <div class="mb-4">
+      <label class="block text-gray-700 font-bold mb-2">Class Name</label>
+      <input type="text" name="name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Biology 101">
+    </div>
+    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+      Create Class
+    </button>
+  </form>
+</main>
+</body>
+</html>

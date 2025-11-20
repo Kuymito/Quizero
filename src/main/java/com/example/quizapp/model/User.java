@@ -1,19 +1,22 @@
 package com.example.quizapp.model;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.Set;
 
 @Entity
-@Table(name = "users") // 'user' is a reserved keyword in PostgreSQL
-@Data
+@Table(name = "users")
+@Getter
+@Setter
 @NoArgsConstructor
+@ToString(exclude = {"quizzes", "taughtClasses", "enrolledClasses"}) // Prevent infinite loops
+@EqualsAndHashCode(onlyExplicitlyIncluded = true) // Use ONLY the ID for equality
 public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long id;
 
     @Column(nullable = false, unique = true)
@@ -33,7 +36,14 @@ public class User {
     @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Quiz> quizzes;
 
-    // Define the roles as an enum
+    // For Teachers: Classes they created
+    @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private Set<Classroom> taughtClasses;
+
+    // For Students: Classes they joined
+    @ManyToMany(mappedBy = "students", fetch = FetchType.LAZY)
+    private Set<Classroom> enrolledClasses;
+
     public enum Role {
         ROLE_ADMIN,
         ROLE_TEACHER,

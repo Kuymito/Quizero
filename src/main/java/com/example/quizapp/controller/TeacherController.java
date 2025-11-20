@@ -8,10 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
@@ -23,61 +20,72 @@ import java.util.Objects;
 @RequestMapping("/teacher")
 public class TeacherController {
 
-    @Autowired
-    private QuizRepository quizRepository;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private QuestionRepository questionRepository;
-
-    @Autowired
-    private OptionRepository optionRepository;
-
-    @Autowired
-    private QuizAttemptRepository quizAttemptRepository;
+    @Autowired private QuizRepository quizRepository;
+    @Autowired private UserRepository userRepository;
+    @Autowired private QuestionRepository questionRepository;
+    @Autowired private OptionRepository optionRepository;
+    @Autowired private QuizAttemptRepository quizAttemptRepository;
+    @Autowired private ClassroomRepository classroomRepository;
 
     @GetMapping("/dashboard")
-    public String teacherDashboard() {
+    public String teacherDashboard(Model model, Authentication authentication) {
+        User teacher = getLoggedInUser(authentication);
+        List<Classroom> classes = classroomRepository.findByTeacherId(teacher.getId());
+        model.addAttribute("classes", classes);
         return "teacher/dashboard";
     }
 
-    // --- THIS IS THE CORRECT METHOD FOR THIS CONTROLLER ---
-    /**
-     * Displays the list of quizzes created by the currently logged-in teacher.
-     */
-    @GetMapping("/quizzes")
-    public String myQuizzes(Model model, Authentication authentication) {
-        User teacher = getLoggedInUser(authentication);
-        // FIX: Use the EAGER fetch method to load questions
-        List<Quiz> quizzes = quizRepository.findByTeacherAndFetchQuestions(teacher);
-        model.addAttribute("quizzes", quizzes);
-        // FIX: Point to the correct teacher template
-        return "teacher/my-quizzes";
+    // --- CLASSROOM MANAGEMENT ---
+
+    @GetMapping("/class/new")
+    public String createClassForm() {
+        return "teacher/create-class";
     }
 
-    // --- THESE METHODS WERE INCORRECTLY PASTED HERE AND HAVE BEEN REMOVED ---
-    // @GetMapping("/quizzes")
-    // public String listQuizzes(Model model) { ... }
-    // @GetMapping("/quiz/{id}")
-    // public String takeQuiz(@PathVariable Long id, Model model) { ... }
+    @PostMapping("/class/create")
+    public String createClass(@RequestParam("name") String name, Authentication authentication) {
+        User teacher = getLoggedInUser(authentication);
+        Classroom classroom = new Classroom();
+        classroom.setName(name);
+        classroom.setTeacher(teacher);
+        classroomRepository.save(classroom);
+        return "redirect:/teacher/dashboard";
+    }
 
+    @GetMapping("/class/{id}")
+    public String manageClass(@PathVariable Long id, Model model, Authentication authentication) {
+        User teacher = getLoggedInUser(authentication);
+        Classroom classroom = classroomRepository.findByIdAndFetchQuizzes(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid Class Id:" + id));
 
-    @GetMapping("/quiz/new")
-    public String createQuizForm(Model model) {
+        if (!classroom.getTeacher().getId().equals(teacher.getId())) {
+            return "redirect:/teacher/dashboard";
+        }
+
+        model.addAttribute("classroom", classroom);
+        return "teacher/manage-class";
+    }
+
+    // --- QUIZ MANAGEMENT ---
+
+    @GetMapping("/class/{classId}/quiz/new")
+    public String createQuizForm(@PathVariable Long classId, Model model) {
+        model.addAttribute("classId", classId);
         return "teacher/create-quiz";
     }
 
-    @PostMapping("/quiz/create")
-    public String createQuiz(HttpServletRequest request, Authentication authentication) {
+    @PostMapping("/class/{classId}/quiz/create")
+    public String createQuiz(@PathVariable Long classId, HttpServletRequest request, Authentication authentication) {
         User teacher = getLoggedInUser(authentication);
+        Classroom classroom = classroomRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid class Id:" + classId));
 
         Quiz quiz = new Quiz();
         quiz.setTitle(request.getParameter("quizTitle"));
         quiz.setSubject(request.getParameter("quizSubject"));
         quiz.setTeacher(teacher);
-        quiz.setCreator(teacher); // This fix was correct
+        quiz.setCreator(teacher);
+        quiz.setClassroom(classroom);
         Quiz savedQuiz = quizRepository.save(quiz);
 
         Map<String, String[]> parameterMap = request.getParameterMap();
@@ -103,7 +111,7 @@ public class TeacherController {
             questionIndex++;
         }
 
-        return "redirect:/teacher/quizzes";
+        return "redirect:/teacher/class/" + classId;
     }
 
     @GetMapping("/quiz/delete/{id}")
@@ -114,28 +122,35 @@ public class TeacherController {
 
         if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only delete your own quizzes.");
-            return "redirect:/teacher/quizzes";
+            return "redirect:/teacher/dashboard";
         }
 
+        Long classId = quiz.getClassroom().getId();
+
+        // FIX: Delete attempts first
+        List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
+        quizAttemptRepository.deleteAll(attempts);
+
+        // Now safe to delete the quiz
         quizRepository.delete(quiz);
-        redirectAttributes.addFlashAttribute("success", "Quiz '" + quiz.getTitle() + "' deleted successfully.");
-        return "redirect:/teacher/quizzes";
+
+        redirectAttributes.addFlashAttribute("success", "Quiz deleted successfully.");
+        return "redirect:/teacher/class/" + classId;
     }
 
     @GetMapping("/quiz/results/{id}")
     public String viewQuizResults(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
         User teacher = getLoggedInUser(authentication);
-        // FIX: Use EAGER fetch to load questions for the title/subject
         Quiz quiz = quizRepository.findByIdAndFetchQuestions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
         if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only view results for your own quizzes.");
-            return "redirect:/teacher/quizzes";
+            return "redirect:/teacher/dashboard";
         }
 
-        // This repository call is fine, as the template only needs attempt.student.fullName
-        List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
+        List<QuizAttempt> attempts = quizAttemptRepository.findByQuizAndFetchStudent(quiz);
+
         model.addAttribute("quiz", quiz);
         model.addAttribute("attempts", attempts);
         return "teacher/quiz-results";

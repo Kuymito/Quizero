@@ -1,28 +1,21 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Teacher Dashboard', ~{::main}, 'teacher-dashboard')}">
-<head>
-    <title>Teacher Dashboard</title>
-</head>
+<head><title>Dashboard</title></head>
 <body>
 <main>
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Your Dashboard</h1>
-    <p class="text-gray-700">This is the teacher-only area. From here you can create new quizzes and view your existing ones.</p>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">My Classes</h1>
+        <a th:href="@{/teacher/class/new}" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">
+            + Create New Class
+        </a>
+    </div>
 
-    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-green-50 p-6 rounded-lg border border-green-200">
-            <h2 class="text-xl font-semibold text-green-800">Create a New Quiz</h2>
-            <p class="text-green-700 mt-2">Build a new quiz with questions and options.</p>
-            <a th:href="@{/teacher/quiz/new}" class="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg">
-                + Create New Quiz
-            </a>
-        </div>
-        <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
-            <h2 class="text-xl font-semibold text-blue-800">Manage My Quizzes</h2>
-            <p class="text-blue-700 mt-2">View student results and manage your quizzes.</p>
-            <a th:href="@{/teacher/quizzes}" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">
-                View My Quizzes
-            </a>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div th:each="cls : ${classes}" class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-2" th:text="${cls.name}">Math 101</h2>
+            <p class="text-gray-500 mb-4">Join Code: <code class="bg-gray-100 px-2 py-1 rounded font-mono text-blue-600" th:text="${cls.code}">ABC12</code></p>
+            <a th:href="@{/teacher/class/{id}(id=${cls.id})}" class="text-blue-600 hover:underline font-medium">Manage Class &rarr;</a>
         </div>
     </div>
 </main>
