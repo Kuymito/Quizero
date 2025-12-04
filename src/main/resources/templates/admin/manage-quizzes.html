@@ -1,33 +1,47 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
       th:replace="~{fragments/layout :: layout('Manage Quizzes', ~{::main}, 'admin-quizzes')}">
-<head>
-    <title>Manage Quizzes</title>
-</head>
+<head><title>Manage Quizzes</title></head>
 <body>
 <main>
     <h1 class="text-3xl font-bold text-gray-800 mb-6">Manage All Quizzes</h1>
+
+    <form th:action="@{/admin/quizzes}" method="get" class="mb-6 flex gap-3">
+        <input type="text" name="search" th:value="${search}" placeholder="Search quizzes..." class="flex-1 px-4 py-2 border rounded-lg">
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg">Search</button>
+        <a th:if="${search}" th:href="@{/admin/quizzes}" class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-6 py-2 rounded-lg flex items-center">Clear</a>
+    </form>
+
     <div class="bg-white rounded-xl shadow-lg overflow-x-auto border border-gray-200">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Subject</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created by (Teacher)</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">ID</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Title</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Subject</th>
+                <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase">Created by</th>
+                <th class="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase">Actions</th>
             </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
             <tr th:each="quiz : ${quizzes}">
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" th:text="${quiz.id}">1</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" th:text="${quiz.title}">Java Basics</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" th:text="${quiz.subject}">Programming</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" th:text="${quiz.teacher.fullName}">Teacher User</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                <td class="px-6 py-4 text-sm text-gray-900" th:text="${quiz.id}">1</td>
+                <td class="px-6 py-4 text-sm text-gray-900 font-medium" th:text="${quiz.title}">Title</td>
+                <td class="px-6 py-4 text-sm text-gray-500" th:text="${quiz.subject}">Subject</td>
+                <td class="px-6 py-4 text-sm text-gray-500" th:text="${quiz.teacher.fullName}">Teacher</td>
+                <td class="px-6 py-4 text-right text-sm font-medium flex justify-end space-x-3">
+                    <a th:href="@{/admin/quiz/edit/{id}(id=${quiz.id})}" class="text-indigo-600 hover:text-indigo-900" title="Edit">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+                        </svg>
+                    </a>
                     <a th:href="@{/admin/quiz/delete/{id}(id=${quiz.id})}"
-                       onclick="return confirm('Are you sure you want to delete this quiz? This is irreversible.');"
-                       class="text-red-600 hover:text-red-900">Delete</a>
+                       onclick="return confirm('Delete this quiz?');"
+                       class="text-red-600 hover:text-red-900" title="Delete">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
                 </td>
             </tr>
             </tbody>

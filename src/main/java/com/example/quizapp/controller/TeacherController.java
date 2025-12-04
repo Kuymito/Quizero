@@ -9,9 +9,11 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.ArrayList;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -75,10 +77,16 @@ public class TeacherController {
     }
 
     @PostMapping("/class/{classId}/quiz/create")
-    public String createQuiz(@PathVariable Long classId, HttpServletRequest request, Authentication authentication) {
+    public String createQuiz(@PathVariable Long classId, HttpServletRequest request, Authentication authentication) throws IOException {
         User teacher = getLoggedInUser(authentication);
         Classroom classroom = classroomRepository.findById(classId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid class Id:" + classId));
+
+        // Check if request is Multipart (has file)
+        MultipartHttpServletRequest multipartRequest = null;
+        if (request instanceof MultipartHttpServletRequest) {
+            multipartRequest = (MultipartHttpServletRequest) request;
+        }
 
         Quiz quiz = new Quiz();
         quiz.setTitle(request.getParameter("quizTitle"));
@@ -93,10 +101,19 @@ public class TeacherController {
         while (parameterMap.containsKey("questions[" + questionIndex + "].text")) {
             Question question = new Question();
             question.setText(parameterMap.get("questions[" + questionIndex + "].text")[0]);
+
+            // Handle Image Upload
+            if (multipartRequest != null) {
+                MultipartFile imageFile = multipartRequest.getFile("questions[" + questionIndex + "].image");
+                if (imageFile != null && !imageFile.isEmpty()) {
+                    question.setImage(imageFile.getBytes());
+                }
+            }
+
             question.setQuiz(savedQuiz);
             Question savedQuestion = questionRepository.save(question);
 
-            List<Option> options = new ArrayList<>();
+            List<Option> options = new java.util.ArrayList<>();
             int optionIndex = 0;
             while (parameterMap.containsKey("questions[" + questionIndex + "].options[" + optionIndex + "].text")) {
                 Option option = new Option();
@@ -114,6 +131,67 @@ public class TeacherController {
         return "redirect:/teacher/class/" + classId;
     }
 
+    @GetMapping("/quiz/edit/{id}")
+    public String editQuizForm(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
+        User teacher = getLoggedInUser(authentication);
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
+
+        if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
+            redirectAttributes.addFlashAttribute("error", "You can only edit your own quizzes.");
+            return "redirect:/teacher/dashboard";
+        }
+
+        model.addAttribute("quiz", quiz);
+        return "teacher/edit-quiz";
+    }
+
+    @PostMapping("/quiz/update/{id}")
+    public String updateQuiz(@PathVariable Long id, HttpServletRequest request, Authentication authentication, RedirectAttributes redirectAttributes) throws IOException {
+        User teacher = getLoggedInUser(authentication);
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
+
+        if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
+            redirectAttributes.addFlashAttribute("error", "You can only edit your own quizzes.");
+            return "redirect:/teacher/dashboard";
+        }
+
+        MultipartHttpServletRequest multipartRequest = null;
+        if (request instanceof MultipartHttpServletRequest) {
+            multipartRequest = (MultipartHttpServletRequest) request;
+        }
+
+        quiz.setTitle(request.getParameter("quizTitle"));
+        quiz.setSubject(request.getParameter("quizSubject"));
+
+        for (Question question : quiz.getQuestions()) {
+            String qTextParam = request.getParameter("question_" + question.getId());
+            if (qTextParam != null) question.setText(qTextParam);
+
+            // Handle Image Update
+            if (multipartRequest != null) {
+                MultipartFile imageFile = multipartRequest.getFile("question_" + question.getId() + "_image");
+                if (imageFile != null && !imageFile.isEmpty()) {
+                    question.setImage(imageFile.getBytes());
+                }
+            }
+
+            String selectedOptionIdStr = request.getParameter("correct_option_" + question.getId());
+            Long correctOptionId = (selectedOptionIdStr != null) ? Long.parseLong(selectedOptionIdStr) : -1L;
+
+            for (Option option : question.getOptions()) {
+                String oTextParam = request.getParameter("option_" + option.getId());
+                if (oTextParam != null) option.setText(oTextParam);
+                option.setCorrect(option.getId().equals(correctOptionId));
+            }
+        }
+
+        quizRepository.save(quiz);
+        redirectAttributes.addFlashAttribute("success", "Quiz updated successfully.");
+        return "redirect:/teacher/class/" + quiz.getClassroom().getId();
+    }
+
     @GetMapping("/quiz/delete/{id}")
     public String deleteQuiz(@PathVariable Long id, Authentication authentication, RedirectAttributes redirectAttributes) {
         User teacher = getLoggedInUser(authentication);
@@ -127,11 +205,10 @@ public class TeacherController {
 
         Long classId = quiz.getClassroom().getId();
 
-        // FIX: Delete attempts first
+        // Delete attempts first
         List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
         quizAttemptRepository.deleteAll(attempts);
 
-        // Now safe to delete the quiz
         quizRepository.delete(quiz);
 
         redirectAttributes.addFlashAttribute("success", "Quiz deleted successfully.");
@@ -149,7 +226,8 @@ public class TeacherController {
             return "redirect:/teacher/dashboard";
         }
 
-        List<QuizAttempt> attempts = quizAttemptRepository.findByQuizAndFetchStudent(quiz);
+        // FIX: Use the new ID-based method
+        List<QuizAttempt> attempts = quizAttemptRepository.findByQuizIdAndFetchStudent(quiz.getId());
 
         model.addAttribute("quiz", quiz);
         model.addAttribute("attempts", attempts);

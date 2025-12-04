@@ -3,10 +3,10 @@ package com.example.quizapp.repository;
 import com.example.quizapp.model.Quiz;
 import com.example.quizapp.model.QuizAttempt;
 import com.example.quizapp.model.User;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.data.domain.Pageable; // Import Pageable
 
 import java.util.List;
 import java.util.Optional;
@@ -17,10 +17,30 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
 
     List<QuizAttempt> findByQuiz(Quiz quiz);
 
+    /**
+     * FIX: Re-added this method.
+     * It is required by StudentController to enforce "One Attempt Per Quiz".
+     */
+    Optional<QuizAttempt> findByStudentAndQuiz(User student, Quiz quiz);
+
+    /**
+     * Fetches attempts and eager loads the student.
+     * Used by TeacherController for the "Results" page.
+     */
+    @Query("SELECT a FROM QuizAttempt a JOIN FETCH a.student WHERE a.quiz.id = :quizId")
+    List<QuizAttempt> findByQuizIdAndFetchStudent(@Param("quizId") Long quizId);
+
+    /**
+     * Fetches attempts and eager loads the quiz.
+     * Used by StudentController for the "My Performance" page.
+     */
     @Query("SELECT DISTINCT a FROM QuizAttempt a LEFT JOIN FETCH a.quiz WHERE a.student = :student")
     List<QuizAttempt> findByStudentAndFetchQuiz(@Param("student") User student);
 
-
+    /**
+     * Fetches a single attempt with ALL details (questions, options, answers).
+     * Used by StudentController for the "Attempt Details" page.
+     */
     @Query("SELECT a FROM QuizAttempt a " +
             "LEFT JOIN FETCH a.quiz q " +
             "LEFT JOIN FETCH q.questions qn " +
@@ -30,11 +50,9 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
             "WHERE a.id = :id")
     Optional<QuizAttempt> findByIdAndFetchAllDetails(@Param("id") Long id);
 
+    /**
+     * Fetches top attempts for the leaderboard.
+     */
     @Query("SELECT a FROM QuizAttempt a JOIN FETCH a.student WHERE a.quiz = :quiz ORDER BY a.score DESC, a.attemptedAt ASC")
     List<QuizAttempt> findTopAttempts(@Param("quiz") Quiz quiz, Pageable pageable);
-
-    Optional<QuizAttempt> findByStudentAndQuiz(User student, Quiz quiz);
-
-    @Query("SELECT a FROM QuizAttempt a JOIN FETCH a.student WHERE a.quiz = :quiz")
-    List<QuizAttempt> findByQuizAndFetchStudent(@Param("quiz") Quiz quiz);
 }

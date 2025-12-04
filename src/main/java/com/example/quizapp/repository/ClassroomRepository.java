@@ -17,27 +17,21 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
 
     Optional<Classroom> findByCode(String code);
 
-    /**
-     * FIX 1: Fetch 'students' eagerly.
-     * Required for the 'joinClass' method to work without crashing.
-     */
     @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.students WHERE c.code = :code")
     Optional<Classroom> findByCodeAndFetchStudents(@Param("code") String code);
 
-    /**
-     * FIX 2: Fetch 'quizzes' and 'teacher' eagerly.
-     * Required for the 'Class Details' page.
-     */
     @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.quizzes LEFT JOIN FETCH c.teacher WHERE c.id = :id")
     Optional<Classroom> findByIdAndFetchQuizzes(@Param("id") Long id);
 
-    /**
-     * FIX 3: Fetch 'teacher' eagerly.
-     * Required for the 'Student Dashboard' to display the teacher's name.
-     */
     @Query("SELECT c FROM Classroom c JOIN c.students s LEFT JOIN FETCH c.teacher WHERE s = :student")
     List<Classroom> findByStudent(@Param("student") User student);
 
     @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher")
     List<Classroom> findAllAndFetchTeacher();
+
+    // NEW: Search classes by Name or Code
+    @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher " +
+            "WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "OR LOWER(c.code) LIKE LOWER(CONCAT('%', :search, '%'))")
+    List<Classroom> searchClassrooms(@Param("search") String search);
 }

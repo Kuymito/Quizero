@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{fragments/layout :: layout('Edit Quiz', ~{::main}, 'admin-quizzes')}">
+<head><title>Edit Quiz</title></head>
+<body>
+<main>
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Edit Quiz (Admin)</h1>
+
+    <form th:action="@{/admin/quiz/update/{id}(id=${quiz.id})}" method="post" class="space-y-8 bg-white p-8 rounded-xl shadow-lg">
+        <div class="p-6 bg-gray-50 rounded-lg border border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Quiz Details</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Quiz Title</label>
+                    <input type="text" name="quizTitle" th:value="${quiz.title}" required class="mt-1 block w-full px-4 py-3 border rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Subject</label>
+                    <input type="text" name="quizSubject" th:value="${quiz.subject}" required class="mt-1 block w-full px-4 py-3 border rounded-lg">
+                </div>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div th:each="question, qStat : ${quiz.questions}" class="p-6 bg-white rounded-lg border border-gray-300 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4" th:text="'Question ' + ${qStat.count}">Question 1</h3>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Question Text</label>
+                    <textarea th:name="'question_' + ${question.id}" rows="2" required class="mt-1 block w-full px-3 py-2 border rounded-md" th:text="${question.text}"></textarea>
+                </div>
+                <div class="space-y-3">
+                    <label class="block text-sm font-medium text-gray-700">Options</label>
+                    <div th:each="option : ${question.options}" class="flex items-center space-x-3">
+                        <input type="radio" th:name="'correct_option_' + ${question.id}" th:value="${option.id}" th:checked="${option.correct}" class="form-radio h-5 w-5 text-blue-600">
+                        <input type="text" th:name="'option_' + ${option.id}" th:value="${option.text}" required class="block w-full px-3 py-2 border rounded-md">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center border-t border-gray-200 pt-6">
+            <a th:href="@{/admin/quizzes}" class="text-gray-600 hover:text-gray-800 font-medium">Cancel</a>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg">Update Quiz</button>
+        </div>
+    </form>
+</main>
+</body>
+</html>

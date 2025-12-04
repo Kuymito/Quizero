@@ -15,31 +15,21 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
     List<Quiz> findByTeacher(User teacher);
 
-    /**
-     * Finds quizzes by teacher and EAGERLY loads the questions
-     * (for teacher/my-quizzes).
-     */
     @Query("SELECT DISTINCT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.teacher = :teacher")
     List<Quiz> findByTeacherAndFetchQuestions(@Param("teacher") User teacher);
 
-    /**
-     * Finds all quizzes and EAGERLY loads questions AND teacher
-     * (for student/quiz-list AND admin/manage-quizzes).
-     */
     @Query("SELECT DISTINCT q FROM Quiz q LEFT JOIN FETCH q.questions LEFT JOIN FETCH q.teacher")
     List<Quiz> findAllAndFetchQuestionsAndTeacher();
 
-    /**
-     * Finds a single quiz by ID and EAGERLY loads questions AND options
-     * (for student/take-quiz and student/submit-quiz).
-     */
     @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions qn LEFT JOIN FETCH qn.options WHERE q.id = :id")
     Optional<Quiz> findByIdAndFetchQuestionsAndOptions(@Param("id") Long id);
 
-    /**
-     * Finds a single quiz by ID and EAGERLY loads questions
-     * (for teacher/quiz-results).
-     */
     @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.id = :id")
     Optional<Quiz> findByIdAndFetchQuestions(@Param("id") Long id);
+
+    // NEW: Search quizzes by Title or Subject (case-insensitive)
+    @Query("SELECT DISTINCT q FROM Quiz q LEFT JOIN FETCH q.questions LEFT JOIN FETCH q.teacher " +
+            "WHERE LOWER(q.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+            "OR LOWER(q.subject) LIKE LOWER(CONCAT('%', :search, '%'))")
+    List<Quiz> searchQuizzes(@Param("search") String search);
 }

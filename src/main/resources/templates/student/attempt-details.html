@@ -33,8 +33,7 @@
   </div>
 
   <div class="space-y-8">
-    <div th:each="question, qStat : ${attempt.quiz.questions}"
-         class="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+    <div th:each="question, qStat : ${attempt.quiz.questions}" class="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
 
       <th:block th:with="studentAnswer=${studentAnswerMap[question.id]}">
         <th:block th:with="selectedOptionId=${studentAnswer != null ? studentAnswer.selectedOption.id : null}">
@@ -43,6 +42,10 @@
             <span th:text="${qStat.count} + '. '">1. </span>
             <span th:text="${question.text}">Question text goes here?</span>
           </p>
+
+          <div th:if="${question.image != null and question.image.length > 0}" class="mb-4">
+            <img th:src="@{/image/question/{id}(id=${question.id})}" class="max-h-64 w-auto rounded-lg border border-gray-200">
+          </div>
 
           <div class="space-y-3">
             <div th:each="option : ${question.options}"

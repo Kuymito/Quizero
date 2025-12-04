@@ -20,17 +20,20 @@ public class Question {
     @Column(nullable = false)
     private String text;
 
+    // FIX: Removed @Lob to prevent "expression is of type oid" error.
+    // Hibernate will now correctly map this byte[] to the 'bytea' column.
+    @Column(columnDefinition="bytea")
+    private byte[] image;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "quiz_id", nullable = false)
-    @ToString.Exclude // Prevent infinite loops
+    @ToString.Exclude
     private Quiz quiz;
 
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     private List<Option> options;
 
-    // FIX: Add this relationship so deleting a Question also deletes its answers
-    // This fixes the DataIntegrityViolationException when deleting a Quiz
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     private List<StudentAnswer> studentAnswers;
