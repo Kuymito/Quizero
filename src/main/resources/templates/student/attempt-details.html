@@ -5,67 +5,98 @@
   <title th:text="'Reviewing: ' + ${attempt.quiz.title}">Quiz Review</title>
 </head>
 <body>
-<main class="max-w-3xl mx-auto">
-  <h1 class="text-3xl font-bold text-gray-800" th:text="${attempt.quiz.title}">Quiz Title</h1>
-  <p class="text-lg text-gray-600 mb-6" th:text="${attempt.quiz.subject}">Quiz Subject</p>
+<main class="max-w-4xl mx-auto">
 
-  <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
-    <h2 class="text-2xl font-semibold text-gray-800 mb-4">Your Result</h2>
-    <div class="grid grid-cols-3 gap-4 text-center">
+  <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div>
+      <h1 class="text-3xl font-bold text-gray-800" th:text="${attempt.quiz.title}">Quiz Title</h1>
+      <p class="text-lg text-gray-600 mt-1" th:text="${attempt.quiz.subject}">Subject</p>
+    </div>
+
+    <a th:href="@{/student/quiz/{id}(id=${attempt.quiz.id})}"
+       class="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-md transition-all transform hover:-translate-y-0.5">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+      </svg>
+      Re-attempt Quiz
+    </a>
+  </div>
+
+  <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
+    <h2 class="text-xl font-semibold text-gray-800 mb-4 border-b pb-2">Result Summary</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
       <div>
-        <div class="text-sm text-gray-500">Score</div>
-        <div class="text-2xl font-bold text-purple-700">
-          <span th:text="${attempt.score}">8</span> /
+        <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Score</div>
+        <div class="text-3xl font-bold text-gray-900 mt-1">
+          <span th:text="${attempt.score}" class="text-purple-600">8</span>
+          <span class="text-gray-400 text-2xl">/</span>
           <span th:text="${attempt.totalQuestions}">10</span>
         </div>
       </div>
       <div>
-        <div class="text-sm text-gray-500">Percentage</div>
-        <div class="text-2xl font-bold text-purple-700">
-          <span th:text="${#numbers.formatDecimal( (attempt.score * 100.0) / attempt.totalQuestions, 1, 1)} + '%'">80.0%</span>
+        <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Percentage</div>
+        <div class="text-3xl font-bold"
+             th:classappend="${(attempt.score * 100.0 / attempt.totalQuestions) >= 50} ? 'text-green-600' : 'text-red-600'">
+          <span th:text="${#numbers.formatDecimal((attempt.score * 100.0) / attempt.totalQuestions, 1, 1)} + '%'">80.0%</span>
         </div>
       </div>
       <div>
-        <div class="text-sm text-gray-500">Attempted On</div>
-        <div class="text-lg font-medium text-gray-700" th:text="${#temporals.format(attempt.attemptedAt, 'MMM dd, yyyy')}">Oct 26, 2024</div>
+        <div class="text-sm font-medium text-gray-500 uppercase tracking-wide">Date</div>
+        <div class="text-lg font-medium text-gray-700 mt-2" th:text="${#temporals.format(attempt.attemptedAt, 'MMM dd, yyyy HH:mm')}">Oct 26, 2024</div>
       </div>
     </div>
   </div>
 
-  <div class="space-y-8">
-    <div th:each="question, qStat : ${attempt.quiz.questions}" class="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+  <div class="space-y-6">
+    <div th:each="question, qStat : ${attempt.quiz.questions}"
+         class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 transition-colors">
 
       <th:block th:with="studentAnswer=${studentAnswerMap[question.id]}">
         <th:block th:with="selectedOptionId=${studentAnswer != null ? studentAnswer.selectedOption.id : null}">
 
-          <p class="text-lg font-semibold text-gray-900 mb-4">
-            <span th:text="${qStat.count} + '. '">1. </span>
-            <span th:text="${question.text}">Question text goes here?</span>
-          </p>
+          <div class="mb-4">
+            <div class="flex items-start">
+              <span class="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 font-bold text-sm mr-3" th:text="${qStat.count}">1</span>
+              <div>
+                <p class="text-lg font-medium text-gray-900 leading-snug" th:text="${question.text}">Question text?</p>
 
-          <div th:if="${question.image != null and question.image.length > 0}" class="mb-4">
-            <img th:src="@{/image/question/{id}(id=${question.id})}" class="max-h-64 w-auto rounded-lg border border-gray-200">
+                <div th:if="${question.image != null and question.image.length > 0}" class="mt-3">
+                  <img th:src="@{/image/question/{id}(id=${question.id})}" class="max-h-64 w-auto rounded-lg border border-gray-200">
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-3 ml-11">
             <div th:each="option : ${question.options}"
-                 class="flex items-center p-3 rounded-lg border"
-                 th:classappend="(${option.correct} ? 'bg-green-50 border-green-300' : '') + ' ' + (${selectedOptionId == option.id and !option.correct} ? 'bg-red-50 border-red-300' : '')">
+                 class="flex items-center p-3 rounded-lg border-2 transition-all"
+                 th:classappend="${option.correct} ? 'bg-green-50 border-green-500' : (${selectedOptionId == option.id} ? 'bg-red-50 border-red-500' : 'border-transparent bg-gray-50')">
 
-                        <span th:if="${option.correct}" class="flex-shrink-0 w-5 h-5 text-green-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
-                        </span>
-              <span th:if="${selectedOptionId == option.id && !option.correct}" class="flex-shrink-0 w-5 h-5 text-red-600">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" /></svg>
-                        </span>
-              <span th:if="${selectedOptionId != option.id && !option.correct}" class="flex-shrink-0 w-5 h-5 text-gray-400">
-                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9H5v2h2V9zm8 0h-2v2h2V9z" clip-rule="evenodd" /></svg>
-                        </span>
+                <span th:if="${option.correct}" class="flex-shrink-0 w-6 h-6 text-green-600 mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>
+                </span>
 
-              <label class="ml-3 block text-sm font-medium text-gray-700" th:text="${option.text}">
-                Option text
-              </label>
-              <span th:if="${selectedOptionId == option.id}" class="ml-auto text-xs font-medium text-gray-500">(Your Answer)</span>
+              <span th:if="${selectedOptionId == option.id && !option.correct}" class="flex-shrink-0 w-6 h-6 text-red-600 mr-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                </span>
+
+              <span th:if="${selectedOptionId != option.id && !option.correct}" class="flex-shrink-0 w-6 h-6 text-gray-300 mr-3">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9H5v2h2V9zm8 0h-2v2h2V9z" clip-rule="evenodd" /></svg>
+                </span>
+
+              <span class="text-sm font-medium"
+                    th:classappend="${option.correct} ? 'text-green-900' : (${selectedOptionId == option.id} ? 'text-red-900' : 'text-gray-700')"
+                    th:text="${option.text}">
+                  Option text
+                </span>
+
+              <span th:if="${selectedOptionId == option.id and !option.correct}" class="ml-auto text-xs font-bold text-red-600 uppercase tracking-wide bg-red-100 px-2 py-1 rounded">
+                    Your Answer
+                </span>
+              <span th:if="${option.correct}" class="ml-auto text-xs font-bold text-green-600 uppercase tracking-wide bg-green-100 px-2 py-1 rounded">
+                    Correct Answer
+                </span>
+
             </div>
           </div>
 

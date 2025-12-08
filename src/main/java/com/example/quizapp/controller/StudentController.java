@@ -31,7 +31,6 @@ public class StudentController {
     @GetMapping("/dashboard")
     public String studentDashboard(Model model, Authentication authentication) {
         User student = getLoggedInUser(authentication);
-        // Uses the new query that fetches the Teacher to prevent dashboard crash
         List<Classroom> classes = classroomRepository.findByStudent(student);
         model.addAttribute("classes", classes);
         return "student/dashboard";
@@ -46,8 +45,6 @@ public class StudentController {
     @PostMapping("/join")
     public String joinClass(@RequestParam("code") String code, Authentication authentication, RedirectAttributes redirectAttributes) {
         User student = getLoggedInUser(authentication);
-
-        // FIX: Use 'findByCodeAndFetchStudents' to safely load the student list
         Optional<Classroom> classroomOpt = classroomRepository.findByCodeAndFetchStudents(code);
 
         if (classroomOpt.isEmpty()) {
@@ -56,8 +53,6 @@ public class StudentController {
         }
 
         Classroom classroom = classroomOpt.get();
-
-        // Now this line won't crash because students are loaded
         classroom.getStudents().add(student);
         classroomRepository.save(classroom);
 
@@ -69,7 +64,6 @@ public class StudentController {
     @GetMapping("/class/{id}")
     public String viewClass(@PathVariable Long id, Model model, Authentication authentication) {
         User student = getLoggedInUser(authentication);
-        // Fetches quizzes and teacher to prevent crash on details page
         Classroom classroom = classroomRepository.findByIdAndFetchQuizzes(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid class ID"));
 
@@ -92,12 +86,6 @@ public class StudentController {
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
-        Optional<QuizAttempt> existingAttempt = quizAttemptRepository.findByStudentAndQuiz(student, quiz);
-        if (existingAttempt.isPresent()) {
-            redirectAttributes.addFlashAttribute("error", "You have already attempted this quiz.");
-            return "redirect:/student/attempt/" + existingAttempt.get().getId();
-        }
-
         model.addAttribute("quiz", quiz);
         return "student/take-quiz";
     }
@@ -111,11 +99,6 @@ public class StudentController {
         User student = getLoggedInUser(authentication);
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
-
-        Optional<QuizAttempt> existingAttempt = quizAttemptRepository.findByStudentAndQuiz(student, quiz);
-        if (existingAttempt.isPresent()) {
-            return "redirect:/student/attempt/" + existingAttempt.get().getId();
-        }
 
         int score = 0;
         Set<StudentAnswer> studentAnswers = new HashSet<>();
@@ -201,7 +184,8 @@ public class StudentController {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
 
-        List<QuizAttempt> topAttempts = quizAttemptRepository.findTopAttempts(quiz, PageRequest.of(0, 10));
+        // FIX: Pass quizId (Long) to match the new repository method signature
+        List<QuizAttempt> topAttempts = quizAttemptRepository.findTopAttempts(quizId, PageRequest.of(0, 10));
 
         model.addAttribute("quiz", quiz);
         model.addAttribute("topAttempts", topAttempts);

@@ -10,8 +10,8 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString(exclude = {"quizzes", "taughtClasses", "enrolledClasses"}) // Prevent infinite loops
-@EqualsAndHashCode(onlyExplicitlyIncluded = true) // Use ONLY the ID for equality
+@ToString(exclude = {"quizzes", "taughtClasses", "enrolledClasses"})
+@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class User {
 
     @Id
@@ -28,19 +28,20 @@ public class User {
     @Column(nullable = false)
     private String fullName;
 
+    // NEW: Track if the user is active or "deleted" (disabled)
+    @Column(nullable = false)
+    private boolean enabled = true;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
-    // A teacher can create many quizzes
     @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Quiz> quizzes;
 
-    // For Teachers: Classes they created
     @OneToMany(mappedBy = "teacher", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private Set<Classroom> taughtClasses;
 
-    // For Students: Classes they joined
     @ManyToMany(mappedBy = "students", fetch = FetchType.LAZY)
     private Set<Classroom> enrolledClasses;
 

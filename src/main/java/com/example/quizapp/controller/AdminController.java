@@ -81,9 +81,14 @@ public class AdminController {
         if (userToDelete.getUsername().equals(loggedInUsername)) {
             redirectAttributes.addFlashAttribute("error", "Error: You cannot delete your own account.");
         } else {
-            userRepository.deleteById(id);
-            redirectAttributes.addFlashAttribute("success", "User '" + userToDelete.getUsername() + "' deleted successfully.");
+            // SOFT DELETE FIX:
+            // Instead of userRepository.deleteById(id), we just disable them.
+            userToDelete.setEnabled(false);
+            userRepository.save(userToDelete);
+
+            redirectAttributes.addFlashAttribute("success", "User '" + userToDelete.getUsername() + "' has been disabled.");
         }
+
         return "redirect:/admin/users";
     }
 
@@ -183,5 +188,39 @@ public class AdminController {
         classroomRepository.deleteById(id);
         redirectAttributes.addFlashAttribute("success", "Class deleted successfully.");
         return "redirect:/admin/classes";
+    }
+
+    @GetMapping("/users/new")
+    public String createUserForm(Model model) {
+        // We pass a new empty User object to the form
+        model.addAttribute("user", new User());
+        return "admin/create-user";
+    }
+
+    @PostMapping("/users/create")
+    public String createUser(@RequestParam("fullName") String fullName,
+                             @RequestParam("username") String username,
+                             @RequestParam("password") String password,
+                             @RequestParam("role") String role,
+                             RedirectAttributes redirectAttributes) {
+
+        // 1. Check if username exists
+        if (userRepository.findByUsername(username).isPresent()) {
+            redirectAttributes.addFlashAttribute("error", "Username '" + username + "' already exists.");
+            return "redirect:/admin/users/new";
+        }
+
+        // 2. Create new user
+        User newUser = new User();
+        newUser.setFullName(fullName);
+        newUser.setUsername(username);
+        newUser.setPassword(passwordEncoder.encode(password)); // Hash the password
+        newUser.setRole(User.Role.valueOf(role));
+        newUser.setEnabled(true);
+
+        userRepository.save(newUser);
+
+        redirectAttributes.addFlashAttribute("success", "User created successfully!");
+        return "redirect:/admin/users";
     }
 }

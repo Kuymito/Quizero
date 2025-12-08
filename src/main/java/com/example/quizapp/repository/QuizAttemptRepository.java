@@ -17,30 +17,14 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
 
     List<QuizAttempt> findByQuiz(Quiz quiz);
 
-    /**
-     * FIX: Re-added this method.
-     * It is required by StudentController to enforce "One Attempt Per Quiz".
-     */
     Optional<QuizAttempt> findByStudentAndQuiz(User student, Quiz quiz);
 
-    /**
-     * Fetches attempts and eager loads the student.
-     * Used by TeacherController for the "Results" page.
-     */
     @Query("SELECT a FROM QuizAttempt a JOIN FETCH a.student WHERE a.quiz.id = :quizId")
     List<QuizAttempt> findByQuizIdAndFetchStudent(@Param("quizId") Long quizId);
 
-    /**
-     * Fetches attempts and eager loads the quiz.
-     * Used by StudentController for the "My Performance" page.
-     */
     @Query("SELECT DISTINCT a FROM QuizAttempt a LEFT JOIN FETCH a.quiz WHERE a.student = :student")
     List<QuizAttempt> findByStudentAndFetchQuiz(@Param("student") User student);
 
-    /**
-     * Fetches a single attempt with ALL details (questions, options, answers).
-     * Used by StudentController for the "Attempt Details" page.
-     */
     @Query("SELECT a FROM QuizAttempt a " +
             "LEFT JOIN FETCH a.quiz q " +
             "LEFT JOIN FETCH q.questions qn " +
@@ -51,8 +35,12 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
     Optional<QuizAttempt> findByIdAndFetchAllDetails(@Param("id") Long id);
 
     /**
-     * Fetches top attempts for the leaderboard.
+     * FIX: Leaderboard now only counts the FIRST attempt.
+     * Logic: Select attempt 'a' ONLY IF its timestamp is the earliest (MIN) for that student and quiz.
      */
-    @Query("SELECT a FROM QuizAttempt a JOIN FETCH a.student WHERE a.quiz = :quiz ORDER BY a.score DESC, a.attemptedAt ASC")
-    List<QuizAttempt> findTopAttempts(@Param("quiz") Quiz quiz, Pageable pageable);
+    @Query("SELECT a FROM QuizAttempt a JOIN FETCH a.student " +
+            "WHERE a.quiz.id = :quizId " +
+            "AND a.attemptedAt = (SELECT MIN(sub.attemptedAt) FROM QuizAttempt sub WHERE sub.student = a.student AND sub.quiz.id = :quizId) " +
+            "ORDER BY a.score DESC, a.attemptedAt ASC")
+    List<QuizAttempt> findTopAttempts(@Param("quizId") Long quizId, Pageable pageable);
 }
