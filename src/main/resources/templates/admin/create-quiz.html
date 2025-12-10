@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout('Create Quiz', ~{::main}, 'teacher-dashboard')}">
-<head><title>Create New Quiz</title></head>
+      th:replace="~{fragments/layout :: layout('Create Quiz', ~{::main}, 'admin-quizzes')}">
+<head><title>Create Quiz</title></head>
 <body>
 <main>
     <div class="flex items-center mb-6">
-        <a th:href="@{/teacher/class/{id}(id=${classId})}" class="mr-4 p-2 bg-white rounded-full text-gray-500 hover:text-gray-800 shadow-sm border border-gray-200">
+        <a th:href="@{/admin/quizzes}" class="mr-4 p-2 bg-white rounded-full text-gray-500 hover:text-gray-800 shadow-sm border border-gray-200">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
             </svg>
@@ -13,13 +13,25 @@
         <h1 class="text-3xl font-bold text-gray-800">Create New Quiz</h1>
     </div>
 
-    <form th:action="@{/teacher/class/{classId}/quiz/create(classId=${classId})}" method="post" enctype="multipart/form-data" id="quizForm" class="space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-200">
+    <form th:action="@{/admin/quiz/create}" method="post" enctype="multipart/form-data" id="quizForm" class="space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-200">
 
         <div class="p-6 bg-gray-50 rounded-lg border border-gray-200">
-            <h2 class="text-xl font-semibold text-gray-700 mb-4">Quiz Details</h2>
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Quiz Title</label>
-                <input type="text" name="quizTitle" required class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Quiz Settings</h2>
+            <div class="grid grid-cols-1 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Assign to Class</label>
+                    <select name="classId" required class="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white">
+                        <option value="" disabled selected>Select a class...</option>
+                        <option th:each="cls : ${classes}"
+                                th:value="${cls.id}"
+                                th:text="${cls.name} + ' (Teacher: ' + ${cls.teacher.fullName} + ')'"></option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">The quiz subject will automatically match the class name.</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Quiz Title</label>
+                    <input type="text" name="title" required class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-green-500 focus:border-green-500">
+                </div>
             </div>
         </div>
 
@@ -54,12 +66,15 @@
             const addQuestionBtn = document.getElementById('addQuestionBtn');
             let questionIndex = 0;
 
+            // Helper to re-index options after deletion so backend loop doesn't break
             const reindexOptions = (container, qIndex) => {
                 const rows = container.querySelectorAll('.option-row');
                 rows.forEach((row, index) => {
                     const radio = row.querySelector('input[type="radio"]');
                     const textInput = row.querySelector('input[type="text"]');
+
                     radio.value = index;
+                    // Important: Backend expects sequential array indices
                     textInput.name = `questions[${qIndex}].options[${index}].text`;
                     textInput.placeholder = `Option ${index + 1}`;
                 });
@@ -69,27 +84,31 @@
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'option-row flex items-center space-x-2 mb-2';
 
+                // Radio Button (Correct Answer)
                 const radioInput = document.createElement('input');
                 radioInput.type = 'radio';
                 radioInput.name = `questions[${qIndex}].correctOption`;
                 radioInput.value = oIndex;
                 radioInput.required = true;
-                radioInput.className = 'form-radio h-5 w-5 text-blue-600';
+                radioInput.className = 'form-radio h-5 w-5 text-blue-600 focus:ring-blue-500';
 
+                // Text Input
                 const textInput = document.createElement('input');
                 textInput.type = 'text';
                 textInput.name = `questions[${qIndex}].options[${oIndex}].text`;
                 textInput.placeholder = `Option ${oIndex + 1}`;
                 textInput.required = true;
-                textInput.className = 'flex-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm';
+                textInput.className = 'flex-1 block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500';
 
+                // Delete Button (Trash Icon)
                 const deleteBtn = document.createElement('button');
                 deleteBtn.type = 'button';
-                deleteBtn.className = 'text-gray-400 hover:text-red-500 p-1';
+                deleteBtn.className = 'text-gray-400 hover:text-red-500 transition-colors p-1';
                 deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" /></svg>`;
 
                 deleteBtn.onclick = function() {
                     const container = optionDiv.parentElement;
+                    // Prevent deleting if only 2 options left
                     if(container.querySelectorAll('.option-row').length <= 2) {
                         alert("A question must have at least 2 options.");
                         return;
@@ -117,7 +136,7 @@
                     </div>
 
                     <label class="block text-sm font-medium text-gray-700 mb-1">Question Text</label>
-                    <textarea name="questions[${qIndex}].text" rows="2" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm mb-4"></textarea>
+                    <textarea name="questions[${qIndex}].text" rows="2" required class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 mb-4"></textarea>
 
                     <div class="mb-4 image-container">
                         <label class="block text-sm font-medium text-gray-700 mb-1">Image (Optional)</label>
@@ -130,20 +149,26 @@
                         <label class="block text-sm font-medium text-gray-700 mb-2">Options</label>
                         <div class="options-container space-y-2"></div>
                         <button type="button" class="add-option-btn mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
-                            + Add Option
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                            Add Option
                         </button>
                     </div>
                 `;
 
                 questionBlock.innerHTML = innerHTML;
                 const optionsContainer = questionBlock.querySelector('.options-container');
+
+                // Add initial options
                 for (let i = 0; i < 4; i++) {
                     optionsContainer.appendChild(createOptionNode(qIndex, i));
                 }
+
+                // Handle "Add Option" button click
                 questionBlock.querySelector('.add-option-btn').addEventListener('click', () => {
                     const currentCount = optionsContainer.querySelectorAll('.option-row').length;
                     optionsContainer.appendChild(createOptionNode(qIndex, currentCount));
                 });
+
                 questionsContainer.appendChild(questionBlock);
             };
 

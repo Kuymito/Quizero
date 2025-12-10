@@ -2,6 +2,8 @@ package com.example.quizapp.repository;
 
 import com.example.quizapp.model.Classroom;
 import com.example.quizapp.model.User;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,12 +28,22 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     @Query("SELECT c FROM Classroom c JOIN c.students s LEFT JOIN FETCH c.teacher WHERE s = :student")
     List<Classroom> findByStudent(@Param("student") User student);
 
-    @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher")
-    List<Classroom> findAllAndFetchTeacher();
+    // Pagination for Admin List
+    @Query(value = "SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher",
+            countQuery = "SELECT COUNT(c) FROM Classroom c")
+    Page<Classroom> findAllAndFetchTeacher(Pageable pageable);
 
-    // NEW: Search classes by Name or Code
-    @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher " +
+    // Search for Admin List
+    @Query(value = "SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher " +
             "WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) " +
-            "OR LOWER(c.code) LIKE LOWER(CONCAT('%', :search, '%'))")
-    List<Classroom> searchClassrooms(@Param("search") String search);
+            "OR LOWER(c.code) LIKE LOWER(CONCAT('%', :search, '%'))",
+            countQuery = "SELECT COUNT(c) FROM Classroom c WHERE LOWER(c.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(c.code) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<Classroom> searchClassrooms(@Param("search") String search, Pageable pageable);
+
+    /**
+     * FIX: This method is CRITICAL for the Create Quiz page.
+     * It loads all classes AND their teachers in one query.
+     */
+    @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher")
+    List<Classroom> findAllWithTeachers();
 }
