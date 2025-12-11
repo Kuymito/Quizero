@@ -35,7 +35,29 @@ public class AdminController {
     @Autowired private OptionRepository optionRepository;
 
     @GetMapping("/dashboard")
-    public String adminDashboard() { return "admin/dashboard"; }
+    public String adminDashboard(Model model) {
+        // 1. Fetch Counts for Summary Cards
+        long totalUsers = userRepository.count();
+        long totalStudents = userRepository.countByRole(User.Role.ROLE_STUDENT);
+        long totalTeachers = userRepository.countByRole(User.Role.ROLE_TEACHER);
+        long totalClasses = classroomRepository.count();
+        long totalQuizzes = quizRepository.count();
+        long totalAttempts = quizAttemptRepository.count();
+
+        // 2. Fetch Recent Activity
+        List<QuizAttempt> recentAttempts = quizAttemptRepository.findTop5ByOrderByAttemptedAtDesc();
+
+        // 3. Add to Model
+        model.addAttribute("totalUsers", totalUsers);
+        model.addAttribute("totalStudents", totalStudents);
+        model.addAttribute("totalTeachers", totalTeachers);
+        model.addAttribute("totalClasses", totalClasses);
+        model.addAttribute("totalQuizzes", totalQuizzes);
+        model.addAttribute("totalAttempts", totalAttempts);
+        model.addAttribute("recentAttempts", recentAttempts);
+
+        return "admin/dashboard";
+    }
 
     // --- USERS (With Pagination) ---
     @GetMapping("/users")

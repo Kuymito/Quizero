@@ -43,4 +43,6 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
             "AND a.attemptedAt = (SELECT MIN(sub.attemptedAt) FROM QuizAttempt sub WHERE sub.student = a.student AND sub.quiz.id = :quizId) " +
             "ORDER BY a.score DESC, a.attemptedAt ASC")
     List<QuizAttempt> findTopAttempts(@Param("quizId") Long quizId, Pageable pageable);
+
+    List<QuizAttempt> findTop5ByOrderByAttemptedAtDesc();
 }

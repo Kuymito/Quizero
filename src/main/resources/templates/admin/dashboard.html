@@ -6,20 +6,176 @@
 </head>
 <body>
 <main>
-    <h1 class="text-3xl font-bold text-gray-800 mb-6">Admin Control Panel</h1>
-    <p class="text-gray-700">This is the admin-only area. From here you can manage all users, quizzes, and subjects.</p>
-    <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
-            <h2 class="text-xl font-semibold text-blue-800">Manage Users</h2>
-            <p class="text-blue-700 mt-2">Add, edit, or remove teachers and students.</p>
-            <a th:href="@{/admin/users}" class="inline-block mt-4 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg">Manage Users</a>
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">System Overview</h1>
+        <p class="text-gray-500 mt-1">Welcome back, Admin. Here is what's happening today.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase">Total Users</p>
+                    <p class="text-3xl font-bold text-gray-800" th:text="${totalUsers}">150</p>
+                </div>
+                <div class="p-3 bg-blue-100 rounded-full text-blue-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center text-sm text-gray-600">
+                <span class="font-bold mr-1" th:text="${totalStudents}">120</span> Students •
+                <span class="font-bold mx-1" th:text="${totalTeachers}">10</span> Teachers
+            </div>
         </div>
-        <div class="bg-green-50 p-6 rounded-lg border border-green-200">
-            <h2 class="text-xl font-semibold text-green-800">Manage All Quizzes</h2>
-            <p class="text-green-700 mt-2">View and delete any quiz from any teacher.</p>
-            <a th:href="@{/admin/quizzes}" class="inline-block mt-4 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg">Manage Quizzes</a>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase">Active Classes</p>
+                    <p class="text-3xl font-bold text-gray-800" th:text="${totalClasses}">12</p>
+                </div>
+                <div class="p-3 bg-purple-100 rounded-full text-purple-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-sm text-purple-600 font-medium cursor-pointer hover:underline">
+                <a th:href="@{/admin/classes}">Manage Classes &rarr;</a>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase">Total Quizzes</p>
+                    <p class="text-3xl font-bold text-gray-800" th:text="${totalQuizzes}">45</p>
+                </div>
+                <div class="p-3 bg-green-100 rounded-full text-green-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-sm text-green-600 font-medium cursor-pointer hover:underline">
+                <a th:href="@{/admin/quizzes}">Manage Quizzes &rarr;</a>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 uppercase">Total Attempts</p>
+                    <p class="text-3xl font-bold text-gray-800" th:text="${totalAttempts}">1,204</p>
+                </div>
+                <div class="p-3 bg-orange-100 rounded-full text-orange-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                    </svg>
+                </div>
+            </div>
+            <div class="mt-4 text-sm text-gray-500">
+                Lifetime engagement
+            </div>
         </div>
     </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 lg:col-span-1">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">User Distribution</h3>
+            <div class="relative h-64 w-full">
+                <canvas id="userChart"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 lg:col-span-2 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+                <h3 class="text-lg font-bold text-gray-800">Recent Quiz Attempts</h3>
+                <a th:href="@{/admin/quizzes}" class="text-sm text-blue-600 hover:underline">View All</a>
+            </div>
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Student</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quiz</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Time</th>
+                </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                <tr th:each="attempt : ${recentAttempts}">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs"
+                                 th:text="${#strings.substring(attempt.student.fullName, 0, 1)}">A</div>
+                            <div class="ml-3">
+                                <div class="text-sm font-medium text-gray-900" th:text="${attempt.student.fullName}">Name</div>
+                                <div class="text-xs text-gray-500" th:text="${attempt.student.username}">User</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" th:text="${attempt.quiz.title}">Quiz</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                              th:classappend="${(attempt.score * 100.0 / attempt.totalQuestions) >= 50} ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">
+                            <span th:text="${#numbers.formatDecimal((attempt.score * 100.0 / attempt.totalQuestions), 1, 0)} + '%'">80%</span>
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-500"
+                        th:text="${#temporals.format(attempt.attemptedAt, 'HH:mm')}">10:00</td>
+                </tr>
+                <tr th:if="${recentAttempts.isEmpty()}">
+                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">No recent activity.</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            // Get data from Thymeleaf
+            const students = [[${totalStudents}]];
+            const teachers = [[${totalTeachers}]];
+            const admins = [[${totalUsers}]] - students - teachers;
+
+            const ctx = document.getElementById('userChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Students', 'Teachers', 'Admins'],
+                    datasets: [{
+                        data: [students, teachers, admins],
+                        backgroundColor: [
+                            '#3B82F6', // Blue (Students)
+                            '#10B981', // Green (Teachers)
+                            '#6366F1'  // Indigo (Admins)
+                        ],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        });
+    </script>
 </main>
 </body>
 </html>

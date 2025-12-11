@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 @SpringBootApplication
 public class QuizAppApplication {
@@ -30,132 +31,150 @@ public class QuizAppApplication {
             PasswordEncoder passwordEncoder) {
 
         return args -> {
-            // Check if data exists to prevent duplicates on restart
-            if (userRepository.count() > 0) {
-                System.out.println("Database already seeded. Skipping initialization.");
+            // Prevent duplicate seeding on restart
+            if (userRepository.count() > 10) {
                 return;
             }
 
-            System.out.println("Seeding database with real IT data...");
+            System.out.println("Starting massive data seeding...");
 
-            // --- 1. CREATE USERS ---
-            User admin = createUser(userRepository, "admin", "password123", "System Administrator", User.Role.ROLE_ADMIN, passwordEncoder);
+            // ==========================================
+            // 1. CORE REAL DATA (For Demo)
+            // ==========================================
 
-            // Teachers
+            // Users
+            User admin = createUser(userRepository, "admin", "password123", "System Admin", User.Role.ROLE_ADMIN, passwordEncoder);
             User teacherAlice = createUser(userRepository, "alice", "password123", "Alice Johnson", User.Role.ROLE_TEACHER, passwordEncoder);
             User teacherDavid = createUser(userRepository, "david", "password123", "David Lee", User.Role.ROLE_TEACHER, passwordEncoder);
-
-            // Students
             User studentBob = createUser(userRepository, "bob", "password123", "Bob Smith", User.Role.ROLE_STUDENT, passwordEncoder);
-            User studentCharlie = createUser(userRepository, "charlie", "password123", "Charlie Davis", User.Role.ROLE_STUDENT, passwordEncoder);
-            User studentEve = createUser(userRepository, "eve", "password123", "Eve Wilson", User.Role.ROLE_STUDENT, passwordEncoder);
 
-            // --- 2. CREATE CLASSES ---
-
-            // Class 1: Java Programming (Teacher: Alice)
+            // Classes
             Classroom javaClass = createClassroom(classroomRepository, "CS101: Java Programming", teacherAlice);
-            enrollStudents(classroomRepository, javaClass, List.of(studentBob, studentCharlie));
+            enrollStudent(classroomRepository, javaClass, studentBob);
 
-            // Class 2: Web Development (Teacher: David)
-            Classroom webClass = createClassroom(classroomRepository, "WEB200: Frontend Development", teacherDavid);
-            enrollStudents(classroomRepository, webClass, List.of(studentBob, studentEve));
+            Classroom webClass = createClassroom(classroomRepository, "WEB200: Web Development", teacherDavid);
+            enrollStudent(classroomRepository, webClass, studentBob);
 
-            // Class 3: Database Systems (Teacher: Alice)
-            Classroom dbClass = createClassroom(classroomRepository, "DB300: Database Systems", teacherAlice);
-            enrollStudents(classroomRepository, dbClass, List.of(studentCharlie, studentEve));
+            // Real Quizzes
+            createRealJavaQuiz(quizRepository, questionRepository, optionRepository, teacherAlice, javaClass);
+            createRealWebQuiz(quizRepository, questionRepository, optionRepository, teacherDavid, webClass);
 
 
-            // --- 3. CREATE QUIZZES & QUESTIONS ---
+            // ==========================================
+            // 2. BULK DATA (To Trigger Pagination)
+            // ==========================================
 
-            // == Quiz 1: Java Basics (for CS101) ==
-            Quiz javaQuiz1 = createQuiz(quizRepository, "Java Fundamentals", "Programming", teacherAlice, javaClass);
+            System.out.println("Generating bulk data for pagination...");
+            Random rand = new Random();
 
-            createQuestion(questionRepository, optionRepository, javaQuiz1,
-                    "Which keyword is used to define a class in Java?",
-                    new String[]{"struct", "class", "object", "define"}, 1); // Correct: class
+            // A. Generate 50 Students
+            List<User> bulkStudents = new ArrayList<>();
+            for (int i = 1; i <= 50; i++) {
+                User s = createUser(userRepository, "student" + i, "password", "Student " + i + " Surname", User.Role.ROLE_STUDENT, passwordEncoder);
+                bulkStudents.add(s);
+            }
 
-            createQuestion(questionRepository, optionRepository, javaQuiz1,
-                    "What is the size of an int variable in Java?",
-                    new String[]{"8 bit", "16 bit", "32 bit", "64 bit"}, 2); // Correct: 32 bit
+            // B. Generate 10 Extra Teachers
+            List<User> bulkTeachers = new ArrayList<>();
+            for (int i = 1; i <= 10; i++) {
+                User t = createUser(userRepository, "teacher" + i, "password", "Teacher " + i + " Roberts", User.Role.ROLE_TEACHER, passwordEncoder);
+                bulkTeachers.add(t);
+            }
+            bulkTeachers.add(teacherAlice);
+            bulkTeachers.add(teacherDavid);
 
-            createQuestion(questionRepository, optionRepository, javaQuiz1,
-                    "Which method is the entry point of a Java application?",
-                    new String[]{"start()", "run()", "main()", "init()"}, 2); // Correct: main()
+            // C. Generate 20 Extra Classes
+            List<Classroom> bulkClasses = new ArrayList<>();
+            String[] subjects = {"History", "Math", "Physics", "Chemistry", "Biology", "Literature", "Economics"};
 
-            // == Quiz 2: OOP Concepts (for CS101) ==
-            Quiz javaQuiz2 = createQuiz(quizRepository, "OOP Concepts", "Programming", teacherAlice, javaClass);
+            for (int i = 1; i <= 20; i++) {
+                User randomTeacher = bulkTeachers.get(rand.nextInt(bulkTeachers.size()));
+                String subject = subjects[rand.nextInt(subjects.length)];
+                Classroom cls = createClassroom(classroomRepository, subject + " " + (100 + i) + ": Advanced " + subject, randomTeacher);
 
-            createQuestion(questionRepository, optionRepository, javaQuiz2,
-                    "Which principle allows a subclass to provide a specific implementation of a method?",
-                    new String[]{"Encapsulation", "Polymorphism", "Abstraction", "Inheritance"}, 1); // Polymorphism
+                // Enroll 5-10 random students per class
+                for(int j=0; j<5; j++) {
+                    enrollStudent(classroomRepository, cls, bulkStudents.get(rand.nextInt(bulkStudents.size())));
+                }
+                bulkClasses.add(cls);
+            }
+            bulkClasses.add(javaClass);
+            bulkClasses.add(webClass);
 
-            createQuestion(questionRepository, optionRepository, javaQuiz2,
-                    "Which access modifier makes a member visible only within its own class?",
-                    new String[]{"public", "protected", "default", "private"}, 3); // private
+            // D. Generate 60 Extra Quizzes
+            for (int i = 1; i <= 60; i++) {
+                Classroom randomClass = bulkClasses.get(rand.nextInt(bulkClasses.size()));
+                User teacher = randomClass.getTeacher();
 
-            // == Quiz 3: HTML & CSS (for WEB200) ==
-            Quiz webQuiz1 = createQuiz(quizRepository, "HTML & CSS Mastery", "Web Development", teacherDavid, webClass);
+                Quiz quiz = new Quiz();
+                quiz.setTitle("Quiz #" + i + ": " + randomClass.getName() + " Review");
+                // FIX: Match subject to Class Name automatically
+                quiz.setSubject(randomClass.getName());
+                quiz.setTeacher(teacher);
+                quiz.setCreator(teacher);
+                quiz.setClassroom(randomClass);
+                quizRepository.save(quiz);
 
-            createQuestion(questionRepository, optionRepository, webQuiz1,
-                    "What does HTML stand for?",
-                    new String[]{"Hyper Text Markup Language", "High Tech Multi Language", "Hyperlink Text Management Language", "Home Tool Markup Language"}, 0);
+                // Add 2 Dummy Questions per Quiz
+                createQuestion(questionRepository, optionRepository, quiz, "Is this a bulk generated question?", new String[]{"Yes", "No", "Maybe", "Unknown"}, 0);
+                createQuestion(questionRepository, optionRepository, quiz, "What is the answer to question " + i + "?", new String[]{"A", "B", "C", "D"}, 2);
+            }
 
-            createQuestion(questionRepository, optionRepository, webQuiz1,
-                    "Which property is used to change the background color?",
-                    new String[]{"color", "bgcolor", "background-color", "bg-color"}, 2);
-
-            createQuestion(questionRepository, optionRepository, webQuiz1,
-                    "Which HTML tag is used to define an internal style sheet?",
-                    new String[]{"<css>", "<script>", "<style>", "<link>"}, 2);
-
-            // == Quiz 4: SQL Basics (for DB300) ==
-            Quiz dbQuiz1 = createQuiz(quizRepository, "SQL Essentials", "Databases", teacherAlice, dbClass);
-
-            createQuestion(questionRepository, optionRepository, dbQuiz1,
-                    "Which SQL statement is used to extract data from a database?",
-                    new String[]{"GET", "OPEN", "EXTRACT", "SELECT"}, 3);
-
-            createQuestion(questionRepository, optionRepository, dbQuiz1,
-                    "Which keyword is used to filter records?",
-                    new String[]{"WHERE", "FILTER", "SEARCH", "WHEN"}, 0);
-
-            System.out.println("Database seeding completed successfully!");
+            System.out.println("Data seeding complete! You can now test pagination.");
         };
     }
 
-    // Helper Methods to keep code clean
+    // --- HELPER METHODS ---
 
     private User createUser(UserRepository repo, String username, String password, String fullname, User.Role role, PasswordEncoder encoder) {
-        User user = new User();
-        user.setUsername(username);
-        user.setPassword(encoder.encode(password));
-        user.setFullName(fullname);
-        user.setRole(role);
-        user.setEnabled(true);
-        return repo.save(user);
+        return repo.findByUsername(username).orElseGet(() -> {
+            User user = new User();
+            user.setUsername(username);
+            user.setPassword(encoder.encode(password));
+            user.setFullName(fullname);
+            user.setRole(role);
+            user.setEnabled(true);
+            return repo.save(user);
+        });
     }
 
     private Classroom createClassroom(ClassroomRepository repo, String name, User teacher) {
         Classroom cls = new Classroom();
         cls.setName(name);
         cls.setTeacher(teacher);
-        // Code is auto-generated in the Entity or you can set it here if you removed @PrePersist
         return repo.save(cls);
     }
 
-    private void enrollStudents(ClassroomRepository repo, Classroom classroom, List<User> students) {
-        classroom.getStudents().addAll(students);
-        repo.save(classroom);
+    private void enrollStudent(ClassroomRepository repo, Classroom classroom, User student) {
+        if (!classroom.getStudents().contains(student)) {
+            classroom.getStudents().add(student);
+            repo.save(classroom);
+        }
     }
 
-    private Quiz createQuiz(QuizRepository repo, String title, String subject, User teacher, Classroom classroom) {
+    private void createRealJavaQuiz(QuizRepository qr, QuestionRepository qRepo, OptionRepository oRepo, User teacher, Classroom classroom) {
         Quiz quiz = new Quiz();
-        quiz.setTitle(title);
-        quiz.setSubject(subject);
+        quiz.setTitle("Java Fundamentals");
+        quiz.setSubject(classroom.getName()); // Match Class Name
         quiz.setTeacher(teacher);
         quiz.setCreator(teacher);
         quiz.setClassroom(classroom);
-        return repo.save(quiz);
+        qr.save(quiz);
+
+        createQuestion(qRepo, oRepo, quiz, "Which keyword creates an object?", new String[]{"class", "new", "object", "create"}, 1);
+        createQuestion(qRepo, oRepo, quiz, "int size in Java?", new String[]{"16 bit", "32 bit", "64 bit", "8 bit"}, 1);
+    }
+
+    private void createRealWebQuiz(QuizRepository qr, QuestionRepository qRepo, OptionRepository oRepo, User teacher, Classroom classroom) {
+        Quiz quiz = new Quiz();
+        quiz.setTitle("HTML Basics");
+        quiz.setSubject(classroom.getName()); // Match Class Name
+        quiz.setTeacher(teacher);
+        quiz.setCreator(teacher);
+        quiz.setClassroom(classroom);
+        qr.save(quiz);
+
+        createQuestion(qRepo, oRepo, quiz, "HTML stands for?", new String[]{"Hyper Text Markup Language", "High Tech Language", "Hyperlinks Text", "Home Tool Language"}, 0);
     }
 
     private void createQuestion(QuestionRepository qRepo, OptionRepository oRepo, Quiz quiz, String text, String[] optionsText, int correctIndex) {
