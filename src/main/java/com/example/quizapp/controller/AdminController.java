@@ -36,7 +36,7 @@ public class AdminController {
 
     @GetMapping("/dashboard")
     public String adminDashboard(Model model) {
-        // 1. Fetch Counts for Summary Cards
+        // 1. Fetch Counts (Keep existing code)
         long totalUsers = userRepository.count();
         long totalStudents = userRepository.countByRole(User.Role.ROLE_STUDENT);
         long totalTeachers = userRepository.countByRole(User.Role.ROLE_TEACHER);
@@ -44,8 +44,9 @@ public class AdminController {
         long totalQuizzes = quizRepository.count();
         long totalAttempts = quizAttemptRepository.count();
 
-        // 2. Fetch Recent Activity
-        List<QuizAttempt> recentAttempts = quizAttemptRepository.findTop5ByOrderByAttemptedAtDesc();
+        // 2. FIX: Fetch Recent Activity using the new robust query
+        // Get top 5 results
+        List<QuizAttempt> recentAttempts = quizAttemptRepository.findRecentAttempts(PageRequest.of(0, 5));
 
         // 3. Add to Model
         model.addAttribute("totalUsers", totalUsers);

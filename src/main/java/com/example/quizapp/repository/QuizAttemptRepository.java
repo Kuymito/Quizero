@@ -45,4 +45,10 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, Long> 
     List<QuizAttempt> findTopAttempts(@Param("quizId") Long quizId, Pageable pageable);
 
     List<QuizAttempt> findTop5ByOrderByAttemptedAtDesc();
+
+    @Query("SELECT qa FROM QuizAttempt qa " +
+            "LEFT JOIN FETCH qa.student " +
+            "LEFT JOIN FETCH qa.quiz " +
+            "ORDER BY qa.attemptedAt DESC")
+    List<QuizAttempt> findRecentAttempts(Pageable pageable);
 }
