@@ -33,95 +33,92 @@ public class QuizAppApplication {
         return args -> {
             // Prevent duplicate seeding on restart
             if (userRepository.count() > 10) {
+                System.out.println("Database already seeded. Skipping...");
                 return;
             }
 
-            System.out.println("Starting massive data seeding...");
+            System.out.println("Starting high-fidelity data seeding...");
 
-            // ==========================================
-            // 1. CORE REAL DATA (For Demo)
-            // ==========================================
-
-            // Users
+            // 1. CORE USERS
             User admin = createUser(userRepository, "admin", "password123", "System Admin", User.Role.ROLE_ADMIN, passwordEncoder);
             User teacherAlice = createUser(userRepository, "alice", "password123", "Alice Johnson", User.Role.ROLE_TEACHER, passwordEncoder);
             User teacherDavid = createUser(userRepository, "david", "password123", "David Lee", User.Role.ROLE_TEACHER, passwordEncoder);
             User studentBob = createUser(userRepository, "bob", "password123", "Bob Smith", User.Role.ROLE_STUDENT, passwordEncoder);
 
-            // Classes
+            // 2. CLASSROOMS
             Classroom javaClass = createClassroom(classroomRepository, "CS101: Java Programming", teacherAlice);
             enrollStudent(classroomRepository, javaClass, studentBob);
 
             Classroom webClass = createClassroom(classroomRepository, "WEB200: Web Development", teacherDavid);
             enrollStudent(classroomRepository, webClass, studentBob);
 
-            // Real Quizzes
-            createRealJavaQuiz(quizRepository, questionRepository, optionRepository, teacherAlice, javaClass);
-            createRealWebQuiz(quizRepository, questionRepository, optionRepository, teacherDavid, webClass);
+            // 3. ALICE'S 20 REAL QUIZZES
+            System.out.println("Generating 20 real Java quizzes for Alice...");
+            seedAliceQuizzes(quizRepository, questionRepository, optionRepository, teacherAlice, javaClass);
 
-
-            // ==========================================
-            // 2. BULK DATA (To Trigger Pagination)
-            // ==========================================
-
-            System.out.println("Generating bulk data for pagination...");
+            // 4. BULK DATA (Keeping your original logic for testing pagination)
+            System.out.println("Generating bulk data for testing...");
             Random rand = new Random();
-
-            // A. Generate 50 Students
             List<User> bulkStudents = new ArrayList<>();
             for (int i = 1; i <= 50; i++) {
-                User s = createUser(userRepository, "student" + i, "password", "Student " + i + " Surname", User.Role.ROLE_STUDENT, passwordEncoder);
-                bulkStudents.add(s);
+                bulkStudents.add(createUser(userRepository, "student" + i, "password", "Student " + i, User.Role.ROLE_STUDENT, passwordEncoder));
             }
 
-            // B. Generate 10 Extra Teachers
-            List<User> bulkTeachers = new ArrayList<>();
+            String[] subjects = {"History", "Math", "Physics", "Chemistry", "Biology"};
             for (int i = 1; i <= 10; i++) {
-                User t = createUser(userRepository, "teacher" + i, "password", "Teacher " + i + " Roberts", User.Role.ROLE_TEACHER, passwordEncoder);
-                bulkTeachers.add(t);
-            }
-            bulkTeachers.add(teacherAlice);
-            bulkTeachers.add(teacherDavid);
-
-            // C. Generate 20 Extra Classes
-            List<Classroom> bulkClasses = new ArrayList<>();
-            String[] subjects = {"History", "Math", "Physics", "Chemistry", "Biology", "Literature", "Economics"};
-
-            for (int i = 1; i <= 20; i++) {
-                User randomTeacher = bulkTeachers.get(rand.nextInt(bulkTeachers.size()));
                 String subject = subjects[rand.nextInt(subjects.length)];
-                Classroom cls = createClassroom(classroomRepository, subject + " " + (100 + i) + ": Advanced " + subject, randomTeacher);
+                Classroom cls = createClassroom(classroomRepository, subject + " " + (100 + i), teacherDavid);
 
-                // Enroll 5-10 random students per class
-                for(int j=0; j<5; j++) {
-                    enrollStudent(classroomRepository, cls, bulkStudents.get(rand.nextInt(bulkStudents.size())));
-                }
-                bulkClasses.add(cls);
-            }
-            bulkClasses.add(javaClass);
-            bulkClasses.add(webClass);
+                Quiz bulkQuiz = new Quiz();
+                bulkQuiz.setTitle(subject + " Quiz " + i);
+                bulkQuiz.setSubject(cls.getName());
+                bulkQuiz.setTeacher(teacherDavid);
+                bulkQuiz.setClassroom(cls);
+                quizRepository.save(bulkQuiz);
 
-            // D. Generate 60 Extra Quizzes
-            for (int i = 1; i <= 60; i++) {
-                Classroom randomClass = bulkClasses.get(rand.nextInt(bulkClasses.size()));
-                User teacher = randomClass.getTeacher();
-
-                Quiz quiz = new Quiz();
-                quiz.setTitle("Quiz #" + i + ": " + randomClass.getName() + " Review");
-                // FIX: Match subject to Class Name automatically
-                quiz.setSubject(randomClass.getName());
-                quiz.setTeacher(teacher);
-                quiz.setCreator(teacher);
-                quiz.setClassroom(randomClass);
-                quizRepository.save(quiz);
-
-                // Add 2 Dummy Questions per Quiz
-                createQuestion(questionRepository, optionRepository, quiz, "Is this a bulk generated question?", new String[]{"Yes", "No", "Maybe", "Unknown"}, 0);
-                createQuestion(questionRepository, optionRepository, quiz, "What is the answer to question " + i + "?", new String[]{"A", "B", "C", "D"}, 2);
+                createQuestion(questionRepository, optionRepository, bulkQuiz, "Bulk Question for " + subject, new String[]{"Ans A", "Ans B", "Ans C", "Ans D"}, 0);
             }
 
-            System.out.println("Data seeding complete! You can now test pagination.");
+            System.out.println("Data seeding complete! Alice now has a full Java curriculum.");
         };
+    }
+
+    private void seedAliceQuizzes(QuizRepository qr, QuestionRepository qRepo, OptionRepository oRepo, User teacher, Classroom classroom) {
+        // Data structure: {Title, Question, Option1, Option2, Option3, Option4, CorrectIndex}
+        String[][] quizData = {
+                {"Java Basics", "Which of these is not a primitive type?", "int", "boolean", "String", "char", "2"},
+                {"JVM Internals", "Which component is responsible for converting bytecode to machine code?", "ClassLoader", "JIT Compiler", "Garbage Collector", "JRE", "1"},
+                {"OOP Principles", "Which principle focuses on hiding internal state?", "Inheritance", "Polymorphism", "Encapsulation", "Abstraction", "2"},
+                {"Data Types", "What is the size of an 'int' in Java?", "16-bit", "32-bit", "64-bit", "8-bit", "1"},
+                {"Control Flow", "Which loop is guaranteed to execute at least once?", "for", "while", "do-while", "foreach", "2"},
+                {"String Pool", "Where are String literals stored in memory?", "Heap", "Stack", "String Constant Pool", "Registers", "2"},
+                {"Arrays", "How do you get the length of an array 'arr'?", "arr.size()", "arr.length", "arr.length()", "arr.count", "1"},
+                {"Inheritance", "Which keyword is used to inherit a class?", "implements", "instanceof", "extends", "super", "2"},
+                {"Interfaces", "Can a class implement multiple interfaces?", "Yes", "No", "Only if abstract", "Only in Java 17+", "0"},
+                {"Exception Handling", "Which block always executes after try-catch?", "finally", "catch", "throw", "stop", "0"},
+                {"Collections", "Which collection does not allow duplicate elements?", "List", "Set", "Map", "Vector", "1"},
+                {"ArrayList vs LinkedList", "Which is better for frequent deletions?", "ArrayList", "LinkedList", "Vector", "Stack", "1"},
+                {"HashMap", "What is the default initial capacity of HashMap?", "8", "12", "16", "32", "2"},
+                {"Generics", "What does 'T' usually stand for in Generics?", "Type", "Time", "Total", "Template", "0"},
+                {"Multithreading", "How do you start a thread?", "thread.run()", "thread.start()", "thread.execute()", "thread.begin()", "1"},
+                {"Lambda Expressions", "Which version introduced Lambdas?", "Java 7", "Java 8", "Java 11", "Java 17", "1"},
+                {"Streams API", "Which method is a terminal operation?", "filter()", "map()", "collect()", "sorted()", "2"},
+                {"Maven Basics", "What is the main configuration file in Maven?", "maven.xml", "settings.json", "pom.xml", "build.gradle", "2"},
+                {"Spring Boot", "Which annotation starts a Spring Boot app?", "@SpringBootApplication", "@EnableAutoConfiguration", "@Component", "@Controller", "0"},
+                {"Java 21", "Which feature was finalized in Java 21?", "Records", "Virtual Threads", "Lambdas", "Modules", "1"}
+        };
+
+        for (String[] data : quizData) {
+            Quiz quiz = new Quiz();
+            quiz.setTitle(data[0]);
+            quiz.setSubject(classroom.getName());
+            quiz.setTeacher(teacher);
+            quiz.setCreator(teacher);
+            quiz.setClassroom(classroom);
+            qr.save(quiz);
+
+            createQuestion(qRepo, oRepo, quiz, data[1], new String[]{data[2], data[3], data[4], data[5]}, Integer.parseInt(data[6]));
+        }
     }
 
     // --- HELPER METHODS ---
@@ -150,31 +147,6 @@ public class QuizAppApplication {
             classroom.getStudents().add(student);
             repo.save(classroom);
         }
-    }
-
-    private void createRealJavaQuiz(QuizRepository qr, QuestionRepository qRepo, OptionRepository oRepo, User teacher, Classroom classroom) {
-        Quiz quiz = new Quiz();
-        quiz.setTitle("Java Fundamentals");
-        quiz.setSubject(classroom.getName()); // Match Class Name
-        quiz.setTeacher(teacher);
-        quiz.setCreator(teacher);
-        quiz.setClassroom(classroom);
-        qr.save(quiz);
-
-        createQuestion(qRepo, oRepo, quiz, "Which keyword creates an object?", new String[]{"class", "new", "object", "create"}, 1);
-        createQuestion(qRepo, oRepo, quiz, "int size in Java?", new String[]{"16 bit", "32 bit", "64 bit", "8 bit"}, 1);
-    }
-
-    private void createRealWebQuiz(QuizRepository qr, QuestionRepository qRepo, OptionRepository oRepo, User teacher, Classroom classroom) {
-        Quiz quiz = new Quiz();
-        quiz.setTitle("HTML Basics");
-        quiz.setSubject(classroom.getName()); // Match Class Name
-        quiz.setTeacher(teacher);
-        quiz.setCreator(teacher);
-        quiz.setClassroom(classroom);
-        qr.save(quiz);
-
-        createQuestion(qRepo, oRepo, quiz, "HTML stands for?", new String[]{"Hyper Text Markup Language", "High Tech Language", "Hyperlinks Text", "Home Tool Language"}, 0);
     }
 
     private void createQuestion(QuestionRepository qRepo, OptionRepository oRepo, Quiz quiz, String text, String[] optionsText, int correctIndex) {

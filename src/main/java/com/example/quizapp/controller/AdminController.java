@@ -1,13 +1,14 @@
 package com.example.quizapp.controller;
 
+// ... (keep existing imports) ...
 import com.example.quizapp.model.*;
 import com.example.quizapp.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page; // Import
-import org.springframework.data.domain.PageRequest; // Import
-import org.springframework.data.domain.Pageable; // Import
-import org.springframework.data.domain.Sort; // Import
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -34,21 +35,17 @@ public class AdminController {
     @Autowired private QuestionRepository questionRepository;
     @Autowired private OptionRepository optionRepository;
 
+    // ... (Keep dashboard method unchanged) ...
     @GetMapping("/dashboard")
     public String adminDashboard(Model model) {
-        // 1. Fetch Counts (Keep existing code)
         long totalUsers = userRepository.count();
         long totalStudents = userRepository.countByRole(User.Role.ROLE_STUDENT);
         long totalTeachers = userRepository.countByRole(User.Role.ROLE_TEACHER);
         long totalClasses = classroomRepository.count();
         long totalQuizzes = quizRepository.count();
         long totalAttempts = quizAttemptRepository.count();
-
-        // 2. FIX: Fetch Recent Activity using the new robust query
-        // Get top 5 results
         List<QuizAttempt> recentAttempts = quizAttemptRepository.findRecentAttempts(PageRequest.of(0, 5));
 
-        // 3. Add to Model
         model.addAttribute("totalUsers", totalUsers);
         model.addAttribute("totalStudents", totalStudents);
         model.addAttribute("totalTeachers", totalTeachers);
@@ -60,7 +57,7 @@ public class AdminController {
         return "admin/dashboard";
     }
 
-    // --- USERS (With Pagination) ---
+    // --- USERS ---
     @GetMapping("/users")
     public String manageUsers(@RequestParam(value = "search", required = false) String search,
                               @RequestParam(value = "page", defaultValue = "0") int page,
@@ -69,6 +66,7 @@ public class AdminController {
                               @RequestParam(value = "sortDir", defaultValue = "desc") String sortDir,
                               Model model) {
 
+        if (size < 1) size = 10; // Validation
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortField).ascending() : Sort.by(sortField).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -80,23 +78,18 @@ public class AdminController {
         }
 
         model.addAttribute("users", userPage.getContent());
-        addPaginationAttributes(model, page, userPage, search, sortField, sortDir);
+        addPaginationAttributes(model, page, userPage, search, sortField, sortDir, size); // Updated call
         return "admin/manage-users";
     }
 
-    // ... (keep create/edit/delete User methods) ...
+    // ... (Keep create/edit/delete User methods unchanged) ...
     @GetMapping("/users/new")
     public String createUserForm(Model model) {
         model.addAttribute("user", new User());
         return "admin/create-user";
     }
-
     @PostMapping("/users/create")
-    public String createUser(@RequestParam("fullName") String fullName,
-                             @RequestParam("username") String username,
-                             @RequestParam("password") String password,
-                             @RequestParam("role") String role,
-                             RedirectAttributes redirectAttributes) {
+    public String createUser(@RequestParam("fullName") String fullName, @RequestParam("username") String username, @RequestParam("password") String password, @RequestParam("role") String role, RedirectAttributes redirectAttributes) {
         if (userRepository.findByUsername(username).isPresent()) {
             redirectAttributes.addFlashAttribute("error", "Username '" + username + "' already exists.");
             return "redirect:/admin/users/new";
@@ -141,8 +134,7 @@ public class AdminController {
         return "redirect:/admin/users";
     }
 
-
-    // --- QUIZZES (With Pagination) ---
+    // --- QUIZZES ---
     @GetMapping("/quizzes")
     public String manageQuizzes(@RequestParam(value = "search", required = false) String search,
                                 @RequestParam(value = "page", defaultValue = "0") int page,
@@ -151,6 +143,7 @@ public class AdminController {
                                 @RequestParam(value = "sortDir", defaultValue = "desc") String sortDir,
                                 Model model) {
 
+        if (size < 1) size = 10;
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortField).ascending() : Sort.by(sortField).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -162,64 +155,43 @@ public class AdminController {
         }
 
         model.addAttribute("quizzes", quizPage.getContent());
-        addPaginationAttributes(model, page, quizPage, search, sortField, sortDir);
+        addPaginationAttributes(model, page, quizPage, search, sortField, sortDir, size);
         return "admin/manage-quizzes";
     }
 
+    // ... (Keep create/edit/delete/update Quiz methods unchanged) ...
     @GetMapping("/quiz/new")
     public String createQuizForm(Model model) {
-        // FIX: Must use findAllWithTeachers() to prevent LazyInitializationException
         List<Classroom> classes = classroomRepository.findAllWithTeachers();
-
         model.addAttribute("classes", classes);
         return "admin/create-quiz";
     }
-
-    // NEW: Handle Quiz Creation
     @PostMapping("/quiz/create")
-    public String createQuiz(@RequestParam("title") String title,
-                             // REMOVED: @RequestParam("subject") String subject,
-                             @RequestParam("classId") Long classId,
-                             HttpServletRequest request,
-                             Authentication authentication) throws IOException {
-
-        Classroom classroom = classroomRepository.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid Class ID"));
+    public String createQuiz(@RequestParam("title") String title, @RequestParam("classId") Long classId, HttpServletRequest request, Authentication authentication) throws IOException {
+        Classroom classroom = classroomRepository.findById(classId).orElseThrow(() -> new IllegalArgumentException("Invalid Class ID"));
         User adminUser = userRepository.findByUsername(authentication.getName()).orElseThrow();
         User classTeacher = classroom.getTeacher();
-
-        // ... multipart setup ...
-        MultipartHttpServletRequest multipartRequest = null;
-        if (request instanceof MultipartHttpServletRequest) {
-            multipartRequest = (MultipartHttpServletRequest) request;
-        }
+        MultipartHttpServletRequest multipartRequest = (request instanceof MultipartHttpServletRequest) ? (MultipartHttpServletRequest) request : null;
 
         Quiz quiz = new Quiz();
         quiz.setTitle(title);
-        // FIX: Auto-set Subject to Class Name (User doesn't type it anymore)
         quiz.setSubject(classroom.getName());
         quiz.setTeacher(classTeacher);
         quiz.setCreator(adminUser);
         quiz.setClassroom(classroom);
         Quiz savedQuiz = quizRepository.save(quiz);
 
-        // ... (Keep the rest of the question/option saving logic exactly the same) ...
         Map<String, String[]> parameterMap = request.getParameterMap();
         int questionIndex = 0;
         while (parameterMap.containsKey("questions[" + questionIndex + "].text")) {
-            // ... copy existing question logic ...
             Question question = new Question();
             question.setText(parameterMap.get("questions[" + questionIndex + "].text")[0]);
-
             if (multipartRequest != null) {
                 MultipartFile imageFile = multipartRequest.getFile("questions[" + questionIndex + "].image");
-                if (imageFile != null && !imageFile.isEmpty()) {
-                    question.setImage(imageFile.getBytes());
-                }
+                if (imageFile != null && !imageFile.isEmpty()) question.setImage(imageFile.getBytes());
             }
             question.setQuiz(savedQuiz);
             Question savedQuestion = questionRepository.save(question);
-
             List<Option> options = new ArrayList<>();
             int optionIndex = 0;
             while (parameterMap.containsKey("questions[" + questionIndex + "].options[" + optionIndex + "].text")) {
@@ -234,11 +206,8 @@ public class AdminController {
             optionRepository.saveAll(options);
             questionIndex++;
         }
-
         return "redirect:/admin/quizzes";
     }
-
-    // ... (keep edit/delete/update Quiz methods) ...
     @GetMapping("/quiz/edit/{id}")
     public String editQuizForm(@PathVariable Long id, Model model) {
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id).orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
@@ -247,40 +216,25 @@ public class AdminController {
     }
     @PostMapping("/quiz/update/{id}")
     public String updateQuiz(@PathVariable Long id, HttpServletRequest request, RedirectAttributes redirectAttributes) throws IOException {
-        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
-
-        MultipartHttpServletRequest multipartRequest = null;
-        if (request instanceof MultipartHttpServletRequest) {
-            multipartRequest = (MultipartHttpServletRequest) request;
-        }
-
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id).orElseThrow();
+        MultipartHttpServletRequest multipartRequest = (request instanceof MultipartHttpServletRequest) ? (MultipartHttpServletRequest) request : null;
         quiz.setTitle(request.getParameter("quizTitle"));
-        // FIX: Removed subject update from request. Keep existing or reset to class name.
         quiz.setSubject(quiz.getClassroom().getName());
-
-        // ... (Keep the rest of the update logic exactly the same) ...
         for (Question question : quiz.getQuestions()) {
-            // ... copy existing question/option update logic ...
             String qTextParam = request.getParameter("question_" + question.getId());
             if (qTextParam != null) question.setText(qTextParam);
-
             if (multipartRequest != null) {
                 MultipartFile imageFile = multipartRequest.getFile("question_" + question.getId() + "_image");
-                if (imageFile != null && !imageFile.isEmpty()) {
-                    question.setImage(imageFile.getBytes());
-                }
+                if (imageFile != null && !imageFile.isEmpty()) question.setImage(imageFile.getBytes());
             }
             String selectedOptionIdStr = request.getParameter("correct_option_" + question.getId());
             Long correctOptionId = (selectedOptionIdStr != null) ? Long.parseLong(selectedOptionIdStr) : -1L;
-
             for (Option option : question.getOptions()) {
                 String oTextParam = request.getParameter("option_" + option.getId());
                 if (oTextParam != null) option.setText(oTextParam);
                 option.setCorrect(option.getId().equals(correctOptionId));
             }
         }
-
         quizRepository.save(quiz);
         redirectAttributes.addFlashAttribute("success", "Quiz updated successfully.");
         return "redirect:/admin/quizzes";
@@ -291,11 +245,11 @@ public class AdminController {
         List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
         quizAttemptRepository.deleteAll(attempts);
         quizRepository.delete(quiz);
-        redirectAttributes.addFlashAttribute("success", "Quiz '" + quiz.getTitle() + "' deleted successfully.");
+        redirectAttributes.addFlashAttribute("success", "Quiz deleted successfully.");
         return "redirect:/admin/quizzes";
     }
 
-    // --- CLASSES (With Pagination) ---
+    // --- CLASSES ---
     @GetMapping("/classes")
     public String manageClasses(@RequestParam(value = "search", required = false) String search,
                                 @RequestParam(value = "page", defaultValue = "0") int page,
@@ -304,6 +258,7 @@ public class AdminController {
                                 @RequestParam(value = "sortDir", defaultValue = "desc") String sortDir,
                                 Model model) {
 
+        if (size < 1) size = 10;
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortField).ascending() : Sort.by(sortField).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
@@ -315,36 +270,28 @@ public class AdminController {
         }
 
         model.addAttribute("classes", classPage.getContent());
-        addPaginationAttributes(model, page, classPage, search, sortField, sortDir);
+        addPaginationAttributes(model, page, classPage, search, sortField, sortDir, size);
         return "admin/manage-classes";
     }
 
+    // ... (Keep create/edit/delete Class methods unchanged) ...
     @GetMapping("/class/new")
     public String createClassForm(Model model) {
-        // Fetch teachers so Admin can assign one
         List<User> teachers = userRepository.findByRole(User.Role.ROLE_TEACHER);
         model.addAttribute("classroom", new Classroom());
         model.addAttribute("teachers", teachers);
         return "admin/create-class";
     }
-
     @PostMapping("/class/create")
-    public String createClass(@RequestParam("name") String name,
-                              @RequestParam("teacherId") Long teacherId,
-                              RedirectAttributes redirectAttributes) {
-        User teacher = userRepository.findById(teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid Teacher ID"));
-
+    public String createClass(@RequestParam("name") String name, @RequestParam("teacherId") Long teacherId, RedirectAttributes redirectAttributes) {
+        User teacher = userRepository.findById(teacherId).orElseThrow(() -> new IllegalArgumentException("Invalid Teacher ID"));
         Classroom classroom = new Classroom();
         classroom.setName(name);
         classroom.setTeacher(teacher);
         classroomRepository.save(classroom);
-
         redirectAttributes.addFlashAttribute("success", "Class created and assigned to " + teacher.getFullName());
         return "redirect:/admin/classes";
     }
-
-    // ... (keep edit/delete/update Class methods) ...
     @GetMapping("/class/edit/{id}")
     public String editClassForm(@PathVariable Long id, Model model) {
         Classroom classroom = classroomRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Invalid class Id:" + id));
@@ -366,7 +313,9 @@ public class AdminController {
         return "redirect:/admin/classes";
     }
 
-    private void addPaginationAttributes(Model model, int page, Page<?> pageData, String search, String sortField, String sortDir) {
+    // --- HELPER --
+    // FIX: Added 'size' parameter to this method and the model
+    private void addPaginationAttributes(Model model, int page, Page<?> pageData, String search, String sortField, String sortDir, int size) {
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", pageData.getTotalPages());
         model.addAttribute("totalItems", pageData.getTotalElements());
@@ -374,5 +323,6 @@ public class AdminController {
         model.addAttribute("sortField", sortField);
         model.addAttribute("sortDir", sortDir);
         model.addAttribute("reverseSortDir", sortDir.equals("asc") ? "desc" : "asc");
+        model.addAttribute("size", size); // New attribute for dropdown
     }
 }

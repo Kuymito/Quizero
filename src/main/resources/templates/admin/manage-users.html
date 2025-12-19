@@ -5,12 +5,23 @@
 <main>
     <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <h1 class="text-3xl font-bold text-gray-800">Manage Users</h1>
-        <a th:href="@{/admin/users/new}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg">Create New User</a>
+        <a th:href="@{/admin/users/new}" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2.5 px-6 rounded-lg shadow-sm transition-colors">Create New User</a>
     </div>
 
-    <form th:action="@{/admin/users}" method="get" class="mb-6 flex gap-3">
-        <input type="text" name="search" th:value="${search}" placeholder="Search..." class="flex-1 px-4 py-2.5 border rounded-lg">
-        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg">Search</button>
+    <form th:action="@{/admin/users}" method="get" id="searchForm" class="mb-6 flex gap-3 items-center">
+        <input type="hidden" name="page" value="0">
+        <input type="hidden" name="sortField" th:value="${sortField}">
+        <input type="hidden" name="sortDir" th:value="${sortDir}">
+
+        <select name="size" onchange="document.getElementById('searchForm').submit()"
+                class="border border-gray-300 rounded-lg py-2.5 px-3 bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="10" th:selected="${size == 10}">10</option>
+            <option value="20" th:selected="${size == 20}">20</option>
+            <option value="50" th:selected="${size == 50}">50</option>
+        </select>
+
+        <input type="text" name="search" th:value="${search}" placeholder="Search..." class="flex-1 px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg shadow-sm transition-colors">Search</button>
     </form>
 
     <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
@@ -18,27 +29,27 @@
             <thead class="bg-gray-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <a th:href="@{/admin/users(page=${currentPage}, sortField='id', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
+                    <a th:href="@{/admin/users(page=${currentPage}, size=${size}, sortField='id', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
                         ID <span th:if="${sortField == 'id'}" th:text="${sortDir == 'asc' ? ' ▲' : ' ▼'}"></span>
                     </a>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <a th:href="@{/admin/users(page=${currentPage}, sortField='fullName', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
+                    <a th:href="@{/admin/users(page=${currentPage}, size=${size}, sortField='fullName', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
                         Full Name <span th:if="${sortField == 'fullName'}" th:text="${sortDir == 'asc' ? ' ▲' : ' ▼'}"></span>
                     </a>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <a th:href="@{/admin/users(page=${currentPage}, sortField='username', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
+                    <a th:href="@{/admin/users(page=${currentPage}, size=${size}, sortField='username', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
                         Username <span th:if="${sortField == 'username'}" th:text="${sortDir == 'asc' ? ' ▲' : ' ▼'}"></span>
                     </a>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <a th:href="@{/admin/users(page=${currentPage}, sortField='role', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
+                    <a th:href="@{/admin/users(page=${currentPage}, size=${size}, sortField='role', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
                         Role <span th:if="${sortField == 'role'}" th:text="${sortDir == 'asc' ? ' ▲' : ' ▼'}"></span>
                     </a>
                 </th>
                 <th class="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    <a th:href="@{/admin/users(page=${currentPage}, sortField='enabled', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
+                    <a th:href="@{/admin/users(page=${currentPage}, size=${size}, sortField='enabled', sortDir=${reverseSortDir}, search=${search})}" class="flex items-center hover:text-gray-700">
                         Status <span th:if="${sortField == 'enabled'}" th:text="${sortDir == 'asc' ? ' ▲' : ' ▼'}"></span>
                     </a>
                 </th>
@@ -59,7 +70,6 @@
                             <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
                         </svg>
                     </a>
-
                     <a th:if="${user.enabled and user.username != #authentication.name}"
                        th:href="@{/admin/users/delete/{id}(id=${user.id})}"
                        onclick="return confirm('Disable this user?');"
@@ -75,11 +85,11 @@
     </div>
 
     <div th:if="${totalPages > 1}" class="mt-6 flex justify-center items-center space-x-2">
-        <a th:href="@{/admin/users(page=${currentPage - 1}, search=${search}, sortField=${sortField}, sortDir=${sortDir})}"
+        <a th:href="@{/admin/users(page=${currentPage - 1}, size=${size}, search=${search}, sortField=${sortField}, sortDir=${sortDir})}"
            class="px-4 py-2 border rounded-lg text-gray-600 bg-white hover:bg-gray-50"
            th:classappend="${currentPage == 0} ? 'pointer-events-none opacity-50'">Previous</a>
         <span class="px-4 py-2 text-gray-700">Page <span th:text="${currentPage + 1}"></span> of <span th:text="${totalPages}"></span></span>
-        <a th:href="@{/admin/users(page=${currentPage + 1}, search=${search}, sortField=${sortField}, sortDir=${sortDir})}"
+        <a th:href="@{/admin/users(page=${currentPage + 1}, size=${size}, search=${search}, sortField=${sortField}, sortDir=${sortDir})}"
            class="px-4 py-2 border rounded-lg text-gray-600 bg-white hover:bg-gray-50"
            th:classappend="${currentPage == totalPages - 1} ? 'pointer-events-none opacity-50'">Next</a>
     </div>

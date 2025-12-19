@@ -4,7 +4,7 @@
 <head><title>Manage Class</title></head>
 <body>
 <main>
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div>
             <h1 class="text-3xl font-bold text-gray-800" th:text="${classroom.name}">Class Name</h1>
             <p class="text-gray-500">Code: <span class="font-mono bg-gray-200 px-2 rounded" th:text="${classroom.code}">CODE</span></p>
@@ -12,6 +12,40 @@
         <a th:href="@{/teacher/class/{id}/quiz/new(id=${classroom.id})}" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg">
             + Add Quiz
         </a>
+    </div>
+
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+        <form th:action="@{/teacher/class/{id}(id=${classroom.id})}" method="get" class="flex flex-col md:flex-row gap-4 items-center" id="searchForm">
+            <input type="hidden" name="page" value="0">
+
+            <div class="flex items-center space-x-2">
+                <label for="size" class="text-sm font-medium text-gray-700">Show</label>
+                <select name="size" id="size" onchange="document.getElementById('searchForm').submit()"
+                        class="block w-20 pl-3 pr-8 py-2 text-base border-gray-300 focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm rounded-md border">
+                    <option value="5" th:selected="${size == 5}">5</option>
+                    <option value="10" th:selected="${size == 10}">10</option>
+                    <option value="20" th:selected="${size == 20}">20</option>
+                    <option value="50" th:selected="${size == 50}">50</option>
+                </select>
+            </div>
+
+            <div class="relative flex-1 w-full">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <input type="text" name="search" th:value="${search}" placeholder="Search quizzes by title..."
+                       class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-green-500 focus:border-green-500 sm:text-sm">
+            </div>
+
+            <button type="submit" class="bg-gray-800 hover:bg-gray-900 text-white font-medium py-2 px-4 rounded-md transition-colors">
+                Search
+            </button>
+            <a th:if="${search != null and !search.isEmpty()}" th:href="@{/teacher/class/{id}(id=${classroom.id}, size=${size})}" class="text-gray-600 hover:text-gray-900 font-medium px-2">
+                Clear
+            </a>
+        </form>
     </div>
 
     <h2 class="text-xl font-semibold text-gray-700 mb-4">Quizzes</h2>
@@ -25,7 +59,7 @@
             </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-            <tr th:each="quiz : ${classroom.quizzes}">
+            <tr th:each="quiz : ${quizzes}">
                 <td class="px-6 py-4 text-sm font-medium text-gray-900" th:text="${quiz.title}">Quiz Title</td>
                 <td class="px-6 py-4 text-sm text-gray-500" th:text="${quiz.subject}">Subject</td>
                 <td class="px-6 py-4 text-right text-sm font-medium space-x-3">
@@ -40,7 +74,51 @@
             </tr>
             </tbody>
         </table>
-        <div th:if="${classroom.quizzes.isEmpty()}" class="p-6 text-center text-gray-500">No quizzes created for this class yet.</div>
+        <div th:if="${quizzes.isEmpty()}" class="p-6 text-center text-gray-500">No quizzes found.</div>
+    </div>
+
+    <div th:if="${totalPages > 1}" class="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 rounded-lg shadow-sm">
+        <div class="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+            <div>
+                <p class="text-sm text-gray-700">
+                    Showing
+                    <span class="font-medium" th:text="${currentPage * size + 1}">1</span>
+                    to
+                    <span class="font-medium" th:text="${(currentPage + 1) * size > totalItems ? totalItems : (currentPage + 1) * size}">10</span>
+                    of
+                    <span class="font-medium" th:text="${totalItems}">97</span>
+                    results
+                </p>
+            </div>
+            <div>
+                <nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <a th:href="@{/teacher/class/{id}(id=${classroom.id}, page=${currentPage - 1}, size=${size}, search=${search})}"
+                       th:classappend="${currentPage == 0} ? 'pointer-events-none opacity-50 bg-gray-50' : 'hover:bg-gray-50'"
+                       class="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0">
+                        <span class="sr-only">Previous</span>
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+
+                    <span th:each="i : ${#numbers.sequence(0, totalPages - 1)}">
+                        <a th:href="@{/teacher/class/{id}(id=${classroom.id}, page=${i}, size=${size}, search=${search})}"
+                           th:text="${i + 1}"
+                           th:classappend="${currentPage == i} ? 'z-10 bg-green-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600' : 'text-gray-900 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:outline-offset-0'"
+                           class="relative inline-flex items-center px-4 py-2 text-sm font-semibold focus:z-20">1</a>
+                    </span>
+
+                    <a th:href="@{/teacher/class/{id}(id=${classroom.id}, page=${currentPage + 1}, size=${size}, search=${search})}"
+                       th:classappend="${currentPage == totalPages - 1} ? 'pointer-events-none opacity-50 bg-gray-50' : 'hover:bg-gray-50'"
+                       class="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0">
+                        <span class="sr-only">Next</span>
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                </nav>
+            </div>
+        </div>
     </div>
 </main>
 </body>

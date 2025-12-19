@@ -4,6 +4,10 @@ import com.example.quizapp.model.*;
 import com.example.quizapp.repository.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page; // Import
+import org.springframework.data.domain.PageRequest; // Import
+import org.springframework.data.domain.Pageable; // Import
+import org.springframework.data.domain.Sort; // Import
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Controller;
@@ -30,6 +34,8 @@ public class TeacherController {
     @Autowired private QuizAttemptRepository quizAttemptRepository;
     @Autowired private ClassroomRepository classroomRepository;
 
+    // ... (Keep dashboard, createClass, etc.) ...
+
     @GetMapping("/dashboard")
     public String teacherDashboard(Model model, Authentication authentication) {
         User teacher = getLoggedInUser(authentication);
@@ -37,8 +43,6 @@ public class TeacherController {
         model.addAttribute("classes", classes);
         return "teacher/dashboard";
     }
-
-    // --- CLASSROOM MANAGEMENT ---
 
     @GetMapping("/class/new")
     public String createClassForm() {
@@ -55,21 +59,43 @@ public class TeacherController {
         return "redirect:/teacher/dashboard";
     }
 
+    // UPDATED: Manage Class with Search, Pagination, and Dropdown
     @GetMapping("/class/{id}")
-    public String manageClass(@PathVariable Long id, Model model, Authentication authentication) {
+    public String manageClass(@PathVariable Long id,
+                              @RequestParam(value = "search", required = false) String search,
+                              @RequestParam(value = "page", defaultValue = "0") int page,
+                              @RequestParam(value = "size", defaultValue = "10") int size,
+                              Model model,
+                              Authentication authentication) {
         User teacher = getLoggedInUser(authentication);
-        Classroom classroom = classroomRepository.findByIdAndFetchQuizzes(id)
+
+        // Use standard findById to avoid fetching all quizzes eagerly, as we will page them
+        Classroom classroom = classroomRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid Class Id:" + id));
 
         if (!classroom.getTeacher().getId().equals(teacher.getId())) {
             return "redirect:/teacher/dashboard";
         }
 
+        // Validate size
+        if (size < 1) size = 10;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<Quiz> quizPage = quizRepository.searchByClassroomId(id, search, pageable);
+
         model.addAttribute("classroom", classroom);
+        model.addAttribute("quizzes", quizPage.getContent()); // Pass page content
+        model.addAttribute("currentPage", page);
+        model.addAttribute("totalPages", quizPage.getTotalPages());
+        model.addAttribute("totalItems", quizPage.getTotalElements());
+        model.addAttribute("search", search);
+        model.addAttribute("size", size);
+
         return "teacher/manage-class";
     }
 
-    // --- QUIZ MANAGEMENT ---
+    // ... (Keep the rest of the file exactly as is: createQuiz, editQuiz, deleteQuiz, results, getLoggedInUser) ...
+    // Note: I am omitting the unchanged methods below to save space, but you should keep them in your file.
 
     @GetMapping("/class/{classId}/quiz/new")
     public String createQuizForm(@PathVariable Long classId, Model model) {
@@ -87,15 +113,12 @@ public class TeacherController {
 
         Quiz quiz = new Quiz();
         quiz.setTitle(request.getParameter("quizTitle"));
-        // FIX: Auto-set Subject to Class Name
         quiz.setSubject(classroom.getName());
         quiz.setTeacher(teacher);
         quiz.setCreator(teacher);
         quiz.setClassroom(classroom);
         Quiz savedQuiz = quizRepository.save(quiz);
 
-        // ... (Keep the rest of the question/option saving logic exactly the same) ...
-        // (Copy the question loop logic from your existing TeacherController)
         Map<String, String[]> parameterMap = request.getParameterMap();
         int questionIndex = 0;
         while (parameterMap.containsKey("questions[" + questionIndex + "].text")) {
@@ -143,17 +166,14 @@ public class TeacherController {
 
     @PostMapping("/quiz/update/{id}")
     public String updateQuiz(@PathVariable Long id, HttpServletRequest request, Authentication authentication, RedirectAttributes redirectAttributes) throws IOException {
-        // ... fetch user/quiz/security check ...
         User teacher = getLoggedInUser(authentication);
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id).orElseThrow();
 
         MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
 
         quiz.setTitle(request.getParameter("quizTitle"));
-        // FIX: Ensure subject stays consistent with class
         quiz.setSubject(quiz.getClassroom().getName());
 
-        // ... (Keep the rest of the update logic exactly the same) ...
         for (Question question : quiz.getQuestions()) {
             String qTextParam = request.getParameter("question_" + question.getId());
             if (qTextParam != null) question.setText(qTextParam);
@@ -189,11 +209,8 @@ public class TeacherController {
         }
 
         Long classId = quiz.getClassroom().getId();
-
-        // Delete attempts first
         List<QuizAttempt> attempts = quizAttemptRepository.findByQuiz(quiz);
         quizAttemptRepository.deleteAll(attempts);
-
         quizRepository.delete(quiz);
 
         redirectAttributes.addFlashAttribute("success", "Quiz deleted successfully.");
@@ -211,7 +228,6 @@ public class TeacherController {
             return "redirect:/teacher/dashboard";
         }
 
-        // FIX: Use the new ID-based method
         List<QuizAttempt> attempts = quizAttemptRepository.findByQuizIdAndFetchStudent(quiz.getId());
 
         model.addAttribute("quiz", quiz);

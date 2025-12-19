@@ -44,4 +44,10 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
 
     @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.id = :id")
     Optional<Quiz> findByIdAndFetchQuestions(@Param("id") Long id);
+
+    @Query(value = "SELECT q FROM Quiz q LEFT JOIN FETCH q.teacher WHERE q.classroom.id = :classId " +
+            "AND (:search IS NULL OR :search = '' OR LOWER(q.title) LIKE LOWER(CONCAT('%', :search, '%')))",
+            countQuery = "SELECT COUNT(q) FROM Quiz q WHERE q.classroom.id = :classId " +
+                    "AND (:search IS NULL OR :search = '' OR LOWER(q.title) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<Quiz> searchByClassroomId(@Param("classId") Long classId, @Param("search") String search, Pageable pageable);
 }

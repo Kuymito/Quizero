@@ -19,7 +19,7 @@ public class Quiz {
     @EqualsAndHashCode.Include
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "creator_user_id", nullable = false)
     private User creator;
 
@@ -28,12 +28,12 @@ public class Quiz {
 
     private String subject;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "teacher_id", nullable = false)
     private User teacher;
 
     // NEW: Link to Classroom
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "classroom_id")
     private Classroom classroom;
 
