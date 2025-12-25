@@ -9,7 +9,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-// Removed unused import: import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -25,12 +24,6 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-    // This bean is no longer needed as the logic is handled inline below
-    // @Bean
-    // public AuthenticationSuccessHandler customAuthenticationSuccessHandler() {
-    //     return new CustomAuthenticationSuccessHandler();
-    // }
-
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -43,27 +36,20 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(authz -> authz
-                        // CRITICAL FIX: Match against controller URLs, not template paths
                         .requestMatchers("/admin/**").hasRole("ADMIN")
                         .requestMatchers("/teacher/**").hasRole("TEACHER")
                         .requestMatchers("/student/**").hasRole("STUDENT")
-
-                        // Allow access to public pages (login, home, static resources)
-                        .requestMatchers("/", "/login", "/css/**", "/js/**").permitAll()
-
-                        // All other requests must be authenticated
+                        .requestMatchers("/", "/login", "/register/**", "/css/**", "/js/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
                         .loginPage("/login")
                         .permitAll()
-                        // This inline success handler is correct and redirects to URLs
                         .successHandler((request, response, authentication) -> {
-                            // Get the user's role
                             String authority = authentication.getAuthorities().stream()
                                     .findFirst()
                                     .map(grantedAuthority -> grantedAuthority.getAuthority())
-                                    .orElse("ROLE_STUDENT"); // Default
+                                    .orElse("ROLE_STUDENT");
 
                             String redirectUrl = switch (authority) {
                                 case "ROLE_ADMIN" -> "/admin/dashboard";

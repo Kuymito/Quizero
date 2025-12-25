@@ -89,18 +89,35 @@ public class AdminController {
         return "admin/create-user";
     }
     @PostMapping("/users/create")
-    public String createUser(@RequestParam("fullName") String fullName, @RequestParam("username") String username, @RequestParam("password") String password, @RequestParam("role") String role, RedirectAttributes redirectAttributes) {
+    public String createUser(@RequestParam("fullName") String fullName,
+                             @RequestParam("username") String username,
+                             @RequestParam("password") String password,
+                             @RequestParam("confirmPassword") String confirmPassword, // NEW PARAM
+                             @RequestParam("role") String role,
+                             RedirectAttributes redirectAttributes) {
+
+        // 1. Check if Username exists
         if (userRepository.findByUsername(username).isPresent()) {
             redirectAttributes.addFlashAttribute("error", "Username '" + username + "' already exists.");
             return "redirect:/admin/users/new";
         }
+
+        // 2. NEW: Check if Passwords match
+        if (!password.equals(confirmPassword)) {
+            redirectAttributes.addFlashAttribute("error", "Passwords do not match.");
+            return "redirect:/admin/users/new";
+        }
+
+        // 3. Create User
         User newUser = new User();
         newUser.setFullName(fullName);
         newUser.setUsername(username);
         newUser.setPassword(passwordEncoder.encode(password));
         newUser.setRole(User.Role.valueOf(role));
         newUser.setEnabled(true);
+
         userRepository.save(newUser);
+
         redirectAttributes.addFlashAttribute("success", "User created successfully!");
         return "redirect:/admin/users";
     }
@@ -167,10 +184,17 @@ public class AdminController {
         return "admin/create-quiz";
     }
     @PostMapping("/quiz/create")
-    public String createQuiz(@RequestParam("title") String title, @RequestParam("classId") Long classId, HttpServletRequest request, Authentication authentication) throws IOException {
-        Classroom classroom = classroomRepository.findById(classId).orElseThrow(() -> new IllegalArgumentException("Invalid Class ID"));
+    public String createQuiz(@RequestParam("title") String title,
+                             @RequestParam("classId") Long classId,
+                             HttpServletRequest request,
+                             Authentication authentication) throws IOException {
+
+        Classroom classroom = classroomRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid Class ID"));
+
         User adminUser = userRepository.findByUsername(authentication.getName()).orElseThrow();
         User classTeacher = classroom.getTeacher();
+
         MultipartHttpServletRequest multipartRequest = (request instanceof MultipartHttpServletRequest) ? (MultipartHttpServletRequest) request : null;
 
         Quiz quiz = new Quiz();
@@ -179,26 +203,45 @@ public class AdminController {
         quiz.setTeacher(classTeacher);
         quiz.setCreator(adminUser);
         quiz.setClassroom(classroom);
+        quiz.setPublished(false); // Default to closed
         Quiz savedQuiz = quizRepository.save(quiz);
 
         Map<String, String[]> parameterMap = request.getParameterMap();
         int questionIndex = 0;
+
+        // Loop through questions
         while (parameterMap.containsKey("questions[" + questionIndex + "].text")) {
             Question question = new Question();
             question.setText(parameterMap.get("questions[" + questionIndex + "].text")[0]);
+
+            // Handle Image
             if (multipartRequest != null) {
                 MultipartFile imageFile = multipartRequest.getFile("questions[" + questionIndex + "].image");
-                if (imageFile != null && !imageFile.isEmpty()) question.setImage(imageFile.getBytes());
+                if (imageFile != null && !imageFile.isEmpty()) {
+                    question.setImage(imageFile.getBytes());
+                }
             }
             question.setQuiz(savedQuiz);
             Question savedQuestion = questionRepository.save(question);
+
             List<Option> options = new ArrayList<>();
             int optionIndex = 0;
+
+            // Loop through options
             while (parameterMap.containsKey("questions[" + questionIndex + "].options[" + optionIndex + "].text")) {
                 Option option = new Option();
                 option.setText(parameterMap.get("questions[" + questionIndex + "].options[" + optionIndex + "].text")[0]);
-                String correctOptionValue = parameterMap.get("questions[" + questionIndex + "].correctOption")[0];
-                option.setCorrect(correctOptionValue.equals(String.valueOf(optionIndex)));
+
+                // --- CHANGED LOGIC START ---
+                // Old: Read "correctOption" (radio) which held a single index
+                // New: Check if this specific option has an "isCorrect" flag (checkbox)
+                String isCorrectKey = "questions[" + questionIndex + "].options[" + optionIndex + "].isCorrect";
+
+                // If the checkbox is checked, the parameter exists in the map. If unchecked, it's missing.
+                boolean isCorrect = parameterMap.containsKey(isCorrectKey);
+                option.setCorrect(isCorrect);
+                // --- CHANGED LOGIC END ---
+
                 option.setQuestion(savedQuestion);
                 options.add(option);
                 optionIndex++;
@@ -206,6 +249,7 @@ public class AdminController {
             optionRepository.saveAll(options);
             questionIndex++;
         }
+
         return "redirect:/admin/quizzes";
     }
     @GetMapping("/quiz/edit/{id}")
@@ -215,26 +259,29 @@ public class AdminController {
         return "admin/edit-quiz";
     }
     @PostMapping("/quiz/update/{id}")
-    public String updateQuiz(@PathVariable Long id, HttpServletRequest request, RedirectAttributes redirectAttributes) throws IOException {
-        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id).orElseThrow();
-        MultipartHttpServletRequest multipartRequest = (request instanceof MultipartHttpServletRequest) ? (MultipartHttpServletRequest) request : null;
+    public String updateQuiz(@PathVariable Long id, HttpServletRequest request, RedirectAttributes redirectAttributes) {
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
+
         quiz.setTitle(request.getParameter("quizTitle"));
-        quiz.setSubject(quiz.getClassroom().getName());
+        quiz.setSubject(request.getParameter("subject"));
+
         for (Question question : quiz.getQuestions()) {
+            // Update Text
             String qTextParam = request.getParameter("question_" + question.getId());
             if (qTextParam != null) question.setText(qTextParam);
-            if (multipartRequest != null) {
-                MultipartFile imageFile = multipartRequest.getFile("question_" + question.getId() + "_image");
-                if (imageFile != null && !imageFile.isEmpty()) question.setImage(imageFile.getBytes());
-            }
-            String selectedOptionIdStr = request.getParameter("correct_option_" + question.getId());
-            Long correctOptionId = (selectedOptionIdStr != null) ? Long.parseLong(selectedOptionIdStr) : -1L;
+
+            // Update Options
             for (Option option : question.getOptions()) {
                 String oTextParam = request.getParameter("option_" + option.getId());
                 if (oTextParam != null) option.setText(oTextParam);
-                option.setCorrect(option.getId().equals(correctOptionId));
+
+                // CHECKBOX CHECK: Look for "correct_option_{id}"
+                String isCorrectParam = request.getParameter("correct_option_" + option.getId());
+                option.setCorrect(isCorrectParam != null);
             }
         }
+
         quizRepository.save(quiz);
         redirectAttributes.addFlashAttribute("success", "Quiz updated successfully.");
         return "redirect:/admin/quizzes";
@@ -274,7 +321,7 @@ public class AdminController {
         return "admin/manage-classes";
     }
 
-    // ... (Keep create/edit/delete Class methods unchanged) ...
+
     @GetMapping("/class/new")
     public String createClassForm(Model model) {
         List<User> teachers = userRepository.findByRole(User.Role.ROLE_TEACHER);

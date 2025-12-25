@@ -28,6 +28,8 @@ public class StudentController {
     @Autowired private StudentAnswerRepository studentAnswerRepository;
     @Autowired private ClassroomRepository classroomRepository;
 
+    // ... (Keep dashboard, joinClass methods unchanged) ...
+
     @GetMapping("/dashboard")
     public String studentDashboard(Model model, Authentication authentication) {
         User student = getLoggedInUser(authentication);
@@ -36,7 +38,6 @@ public class StudentController {
         return "student/dashboard";
     }
 
-    // --- JOIN CLASS ---
     @GetMapping("/join")
     public String joinClassForm() {
         return "student/join-class";
@@ -46,39 +47,66 @@ public class StudentController {
     public String joinClass(@RequestParam("code") String code, Authentication authentication, RedirectAttributes redirectAttributes) {
         User student = getLoggedInUser(authentication);
         Optional<Classroom> classroomOpt = classroomRepository.findByCodeAndFetchStudents(code);
-
         if (classroomOpt.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Invalid class code.");
             return "redirect:/student/join";
         }
-
         Classroom classroom = classroomOpt.get();
         classroom.getStudents().add(student);
         classroomRepository.save(classroom);
-
         redirectAttributes.addFlashAttribute("success", "Joined " + classroom.getName() + " successfully!");
         return "redirect:/student/dashboard";
     }
 
-    // --- VIEW CLASS ---
+    // --- VIEW CLASS (UPDATED) ---
     @GetMapping("/class/{id}")
-    public String viewClass(@PathVariable Long id, Model model, Authentication authentication) {
+    public String viewClass(@PathVariable Long id,
+                            @RequestParam(value = "search", required = false) String search,
+                            @RequestParam(value = "showAll", defaultValue = "false") boolean showAll,
+                            Model model,
+                            Authentication authentication) {
+
         User student = getLoggedInUser(authentication);
-        Classroom classroom = classroomRepository.findByIdAndFetchQuizzes(id)
+
+        // FIX: Use the new method that fetches the teacher to prevent LazyInitializationException
+        Classroom classroom = classroomRepository.findByIdAndFetchTeacher(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid class ID"));
 
+        // Fetch Filtered Quizzes (This list is already passed to the model as 'quizzes')
+        List<Quiz> filteredQuizzes = quizRepository.findForStudent(id, search, showAll);
+
+        List<QuizAttempt> attempts = quizAttemptRepository.findByStudent(student);
+        Set<Long> attemptedQuizIds = attempts.stream()
+                .map(attempt -> attempt.getQuiz().getId())
+                .collect(Collectors.toSet());
+
         model.addAttribute("classroom", classroom);
+        model.addAttribute("quizzes", filteredQuizzes);
+        model.addAttribute("attemptedQuizIds", attemptedQuizIds);
+        model.addAttribute("search", search);
+        model.addAttribute("showAll", showAll);
+
         return "student/class-details";
     }
 
-    // --- QUIZ METHODS ---
-
+    // --- QUIZ LIST (UPDATED) ---
     @GetMapping("/quizzes")
-    public String listQuizzes(Model model) {
+    public String listQuizzes(Model model, Authentication authentication) {
+        User student = getLoggedInUser(authentication);
         List<Quiz> quizzes = quizRepository.findAllAndFetchQuestionsAndTeacher();
+
+
+        List<QuizAttempt> attempts = quizAttemptRepository.findByStudent(student);
+        Set<Long> attemptedQuizIds = attempts.stream()
+                .map(attempt -> attempt.getQuiz().getId())
+                .collect(Collectors.toSet());
+
         model.addAttribute("quizzes", quizzes);
+        model.addAttribute("attemptedQuizIds", attemptedQuizIds); // Pass to view
         return "student/quiz-list";
     }
+
+
 
     @GetMapping("/quiz/{id}")
     public String takeQuiz(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
@@ -86,61 +114,58 @@ public class StudentController {
         Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
 
+        // NEW: Check if quiz is published
+        if (!quiz.isPublished()) {
+            redirectAttributes.addFlashAttribute("error", "This quiz is currently closed by the teacher.");
+            return "redirect:/student/class/" + quiz.getClassroom().getId();
+        }
+
         model.addAttribute("quiz", quiz);
         return "student/take-quiz";
     }
 
-    @PostMapping("/quiz/submit")
-    public String submitQuiz(@RequestParam("quizId") Long quizId,
-                             HttpServletRequest request,
-                             Authentication authentication,
-                             RedirectAttributes redirectAttributes) {
-
+    @PostMapping("/quiz/submit/{id}")
+    public String submitQuiz(@PathVariable("id") Long quizId, HttpServletRequest request, Authentication authentication, RedirectAttributes redirectAttributes) {
+        // ... (Use the FIXED logic from the previous turn) ...
         User student = getLoggedInUser(authentication);
-        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(quizId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
-
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(quizId).orElseThrow();
+        if (!quiz.isPublished()) {
+            redirectAttributes.addFlashAttribute("error", "Time's up! The quiz has been closed.");
+            return "redirect:/student/class/" + quiz.getClassroom().getId();
+        }
         int score = 0;
         Set<StudentAnswer> studentAnswers = new HashSet<>();
-        Set<Question> questions = quiz.getQuestions();
-
         QuizAttempt attempt = new QuizAttempt();
         attempt.setStudent(student);
         attempt.setQuiz(quiz);
         attempt.setAttemptedAt(LocalDateTime.now());
-        attempt.setTotalQuestions(questions.size());
+        attempt.setTotalQuestions(quiz.getQuestions().size());
         QuizAttempt savedAttempt = quizAttemptRepository.save(attempt);
 
-        for (Question question : questions) {
-            String paramName = "question-" + question.getId();
-            String selectedOptionIdStr = request.getParameter(paramName);
-
-            if (selectedOptionIdStr != null) {
-                Long selectedOptionId = Long.parseLong(selectedOptionIdStr);
-                Option selectedOption = question.getOptions().stream()
-                        .filter(opt -> opt.getId().equals(selectedOptionId))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalArgumentException("Invalid option Id:" + selectedOptionId));
-
-                StudentAnswer studentAnswer = new StudentAnswer();
-                studentAnswer.setQuizAttempt(savedAttempt);
-                studentAnswer.setQuestion(question);
-                studentAnswer.setSelectedOption(selectedOption);
-                studentAnswers.add(studentAnswer);
-
-                if (selectedOption.isCorrect()) {
-                    score++;
+        for (Question question : quiz.getQuestions()) {
+            String[] selectedOptionIds = request.getParameterValues("question_" + question.getId());
+            Set<Long> correctOptionIds = question.getOptions().stream().filter(Option::isCorrect).map(Option::getId).collect(Collectors.toSet());
+            Set<Long> userSelectedIds = new HashSet<>();
+            if (selectedOptionIds != null) {
+                for (String optionIdStr : selectedOptionIds) {
+                    Long optionId = Long.parseLong(optionIdStr);
+                    userSelectedIds.add(optionId);
+                    StudentAnswer studentAnswer = new StudentAnswer();
+                    studentAnswer.setQuizAttempt(savedAttempt);
+                    studentAnswer.setQuestion(question);
+                    studentAnswer.setSelectedOption(optionRepository.findById(optionId).orElse(null));
+                    studentAnswers.add(studentAnswer);
                 }
             }
+            if (userSelectedIds.equals(correctOptionIds)) score++;
         }
-
         studentAnswerRepository.saveAll(studentAnswers);
-        savedAttempt.setStudentAnswers(studentAnswers);
         savedAttempt.setScore(score);
         quizAttemptRepository.save(savedAttempt);
-
         return "redirect:/student/attempt/" + savedAttempt.getId();
     }
+
+    // ... (Keep other methods) ...
 
     @GetMapping("/performance")
     public String viewPerformance(Model model, Authentication authentication) {
@@ -153,24 +178,16 @@ public class StudentController {
     @GetMapping("/attempt/{id}")
     public String viewAttemptDetails(@PathVariable Long id, Model model, Authentication authentication, RedirectAttributes redirectAttributes) {
         User student = getLoggedInUser(authentication);
-        QuizAttempt attempt = quizAttemptRepository.findByIdAndFetchAllDetails(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid attempt Id:" + id));
-
+        QuizAttempt attempt = quizAttemptRepository.findByIdAndFetchAllDetails(id).orElseThrow();
         if (!Objects.equals(attempt.getStudent().getId(), student.getId())) {
             redirectAttributes.addFlashAttribute("error", "Error: You can only view your own quiz attempts.");
             return "redirect:/student/performance";
         }
-
-        Map<Long, StudentAnswer> studentAnswerMap = attempt.getStudentAnswers().stream()
-                .collect(Collectors.toMap(sa -> sa.getQuestion().getId(), sa -> sa));
-
+        Map<Long, StudentAnswer> studentAnswerMap = attempt.getStudentAnswers().stream().collect(Collectors.toMap(sa -> sa.getQuestion().getId(), sa -> sa));
         model.addAttribute("attempt", attempt);
         model.addAttribute("studentAnswerMap", studentAnswerMap);
-
         return "student/attempt-details";
     }
-
-    // --- LEADERBOARD FEATURES ---
 
     @GetMapping("/leaderboard")
     public String leaderboardList(Model model) {
@@ -181,12 +198,8 @@ public class StudentController {
 
     @GetMapping("/leaderboard/{quizId}")
     public String leaderboardRankings(@PathVariable Long quizId, Model model) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + quizId));
-
-        // FIX: Pass quizId (Long) to match the new repository method signature
+        Quiz quiz = quizRepository.findById(quizId).orElseThrow();
         List<QuizAttempt> topAttempts = quizAttemptRepository.findTopAttempts(quizId, PageRequest.of(0, 10));
-
         model.addAttribute("quiz", quiz);
         model.addAttribute("topAttempts", topAttempts);
         return "student/leaderboard-rankings";

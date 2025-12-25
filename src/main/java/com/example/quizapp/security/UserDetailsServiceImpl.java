@@ -27,7 +27,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         Collection<? extends GrantedAuthority> authorities =
                 Collections.singletonList(new SimpleGrantedAuthority(user.getRole().name()));
 
-        // FIX: Use the 7-argument constructor to pass the 'enabled' status
+
         return new org.springframework.security.core.userdetails.User(
                 user.getUsername(),
                 user.getPassword(),

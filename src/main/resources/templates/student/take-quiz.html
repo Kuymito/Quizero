@@ -1,37 +1,97 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{fragments/layout :: layout('Take Quiz', ~{::main}, 'student-take-quiz')}">
+      th:replace="~{fragments/layout :: layout('Take Quiz', ~{::main}, 'student-dashboard')}">
 <head><title>Take Quiz</title></head>
 <body>
-<main class="max-w-3xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-800" th:text="${quiz.title}">Quiz Title</h1>
-    <p class="text-lg text-gray-600 mb-6" th:text="${quiz.subject}">Quiz Subject</p>
+<main>
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-800" th:text="${quiz.title}">Quiz Title</h1>
+        <p class="text-gray-500" th:text="${quiz.classroom.name} + ' • ' + ${quiz.questions.size()} + ' Questions'">Details</p>
+    </div>
 
-    <form th:action="@{/student/quiz/submit}" method="post" class="bg-white p-8 rounded-xl shadow-lg">
-        <input type="hidden" name="quizId" th:value="${quiz.id}" />
+    <form th:action="@{/student/quiz/submit/{id}(id=${quiz.id})}" method="post" id="quizForm" class="space-y-8">
 
-        <div class="space-y-8">
-            <div th:each="question, qStat : ${quiz.questions}" class="p-6 bg-white rounded-lg border border-gray-200">
-                <p class="text-lg font-semibold text-gray-900 mb-4">
-                    <span th:text="${qStat.count} + '. '">1. </span>
-                    <span th:text="${question.text}">Question text goes here?</span>
-                </p>
+        <div th:each="question, qStat : ${quiz.questions}"
+             class="question-card bg-white p-6 rounded-xl shadow-sm border border-gray-200 transition-colors duration-300"
+             th:data-id="${question.id}"
+             th:data-index="${qStat.count}">
 
-                <div th:if="${question.image != null and question.image.length > 0}" class="mb-4">
-                    <img th:src="@{/image/question/{id}(id=${question.id})}" class="max-h-64 w-auto rounded-lg border border-gray-200">
-                </div>
+            <div class="mb-4">
+                <span class="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded mb-2" th:text="'Question ' + ${qStat.count}">Q1</span>
+                <p class="text-lg font-medium text-gray-900" th:text="${question.text}">Question Text</p>
+            </div>
 
-                <div class="space-y-3">
-                    <div th:each="option : ${question.options}" class="flex items-center">
-                        <input type="radio" th:id="'option-' + ${option.id}" th:name="'question-' + ${question.id}" th:value="${option.id}" required class="form-radio h-5 w-5 text-purple-600 focus:ring-purple-500">
-                        <label th:for="'option-' + ${option.id}" class="ml-3 block text-sm font-medium text-gray-700" th:text="${option.text}">Option text</label>
+            <div th:if="${question.image != null}" class="mb-4">
+                <img th:src="@{/image/question/{id}(id=${question.id})}" alt="Question Image" class="max-h-64 rounded-lg border border-gray-200">
+            </div>
+
+            <div class="space-y-3">
+                <div th:each="option : ${question.options}" class="flex items-start">
+                    <div class="flex items-center h-5">
+                        <input type="checkbox"
+                               th:name="'question_' + ${question.id}"
+                               th:value="${option.id}"
+                               th:id="'option_' + ${option.id}"
+                               class="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded cursor-pointer">
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label th:for="'option_' + ${option.id}" class="font-medium text-gray-700 cursor-pointer" th:text="${option.text}">Option Text</label>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg">Submit Quiz</button>
+        <div class="pt-4">
+            <button type="submit"
+                    class="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition-colors">
+                Submit Answers
+            </button>
         </div>
     </form>
+
+    <script>
+        document.getElementById('quizForm').addEventListener('submit', function(e) {
+            const questions = document.querySelectorAll('.question-card');
+            let firstUnanswered = null;
+
+            // Reset previous error highlights
+            questions.forEach(card => {
+                card.classList.remove('border-red-500', 'ring-2', 'ring-red-200');
+            });
+
+            // Check each question
+            for (let i = 0; i < questions.length; i++) {
+                const card = questions[i];
+                const qId = card.getAttribute('data-id');
+                const qIndex = card.getAttribute('data-index');
+
+                // Check if any checkbox with this question's ID name is checked
+                const checkedOptions = document.querySelectorAll(`input[name="question_${qId}"]:checked`);
+
+                if (checkedOptions.length === 0) {
+                    // It's unanswered
+                    if (!firstUnanswered) firstUnanswered = card;
+
+                    // Highlight error
+                    card.classList.add('border-red-500', 'ring-2', 'ring-red-200');
+                }
+            }
+
+            if (firstUnanswered) {
+                // Stop submission
+                e.preventDefault();
+                alert("You have unanswered questions. Please answer all questions before submitting.");
+
+                // Scroll to the first missed question
+                firstUnanswered.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                // All good, show confirmation
+                if (!confirm('Are you sure you want to submit?')) {
+                    e.preventDefault();
+                }
+            }
+        });
+    </script>
 </main>
 </body>
 </html>

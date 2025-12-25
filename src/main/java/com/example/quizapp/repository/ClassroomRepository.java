@@ -22,8 +22,8 @@ public interface ClassroomRepository extends JpaRepository<Classroom, Long> {
     @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.students WHERE c.code = :code")
     Optional<Classroom> findByCodeAndFetchStudents(@Param("code") String code);
 
-    @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.quizzes LEFT JOIN FETCH c.teacher WHERE c.id = :id")
-    Optional<Classroom> findByIdAndFetchQuizzes(@Param("id") Long id);
+    @Query("SELECT c FROM Classroom c LEFT JOIN FETCH c.teacher WHERE c.id = :id")
+    Optional<Classroom> findByIdAndFetchTeacher(@Param("id") Long id);
 
     @Query("SELECT c FROM Classroom c JOIN c.students s LEFT JOIN FETCH c.teacher WHERE s = :student")
     List<Classroom> findByStudent(@Param("student") User student);

@@ -59,7 +59,7 @@ public class TeacherController {
         return "redirect:/teacher/dashboard";
     }
 
-    // UPDATED: Manage Class with Search, Pagination, and Dropdown
+    //Manage Class with Search, Pagination, and Dropdown
     @GetMapping("/class/{id}")
     public String manageClass(@PathVariable Long id,
                               @RequestParam(value = "search", required = false) String search,
@@ -69,7 +69,7 @@ public class TeacherController {
                               Authentication authentication) {
         User teacher = getLoggedInUser(authentication);
 
-        // Use standard findById to avoid fetching all quizzes eagerly, as we will page them
+
         Classroom classroom = classroomRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid Class Id:" + id));
 
@@ -94,8 +94,6 @@ public class TeacherController {
         return "teacher/manage-class";
     }
 
-    // ... (Keep the rest of the file exactly as is: createQuiz, editQuiz, deleteQuiz, results, getLoggedInUser) ...
-    // Note: I am omitting the unchanged methods below to save space, but you should keep them in your file.
 
     @GetMapping("/class/{classId}/quiz/new")
     public String createQuizForm(@PathVariable Long classId, Model model) {
@@ -105,10 +103,9 @@ public class TeacherController {
 
     @PostMapping("/class/{classId}/quiz/create")
     public String createQuiz(@PathVariable Long classId, HttpServletRequest request, Authentication authentication) throws IOException {
-        User teacher = getLoggedInUser(authentication);
-        Classroom classroom = classroomRepository.findById(classId)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid class Id:" + classId));
 
+        User teacher = getLoggedInUser(authentication);
+        Classroom classroom = classroomRepository.findById(classId).orElseThrow();
         MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
 
         Quiz quiz = new Quiz();
@@ -121,9 +118,11 @@ public class TeacherController {
 
         Map<String, String[]> parameterMap = request.getParameterMap();
         int questionIndex = 0;
+
         while (parameterMap.containsKey("questions[" + questionIndex + "].text")) {
             Question question = new Question();
             question.setText(parameterMap.get("questions[" + questionIndex + "].text")[0]);
+
             MultipartFile imageFile = multipartRequest.getFile("questions[" + questionIndex + "].image");
             if (imageFile != null && !imageFile.isEmpty()) {
                 question.setImage(imageFile.getBytes());
@@ -133,11 +132,15 @@ public class TeacherController {
 
             List<Option> options = new ArrayList<>();
             int optionIndex = 0;
+
             while (parameterMap.containsKey("questions[" + questionIndex + "].options[" + optionIndex + "].text")) {
                 Option option = new Option();
                 option.setText(parameterMap.get("questions[" + questionIndex + "].options[" + optionIndex + "].text")[0]);
-                String correctOptionValue = parameterMap.get("questions[" + questionIndex + "].correctOption")[0];
-                option.setCorrect(correctOptionValue.equals(String.valueOf(optionIndex)));
+
+                String[] correctParam = parameterMap.get("questions[" + questionIndex + "].options[" + optionIndex + "].isCorrect");
+                boolean isCorrect = (correctParam != null && correctParam.length > 0);
+
+                option.setCorrect(isCorrect);
                 option.setQuestion(savedQuestion);
                 options.add(option);
                 optionIndex++;
@@ -165,30 +168,50 @@ public class TeacherController {
     }
 
     @PostMapping("/quiz/update/{id}")
-    public String updateQuiz(@PathVariable Long id, HttpServletRequest request, Authentication authentication, RedirectAttributes redirectAttributes) throws IOException {
-        User teacher = getLoggedInUser(authentication);
-        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id).orElseThrow();
+    public String updateQuiz(@PathVariable Long id,
+                             HttpServletRequest request,
+                             Authentication authentication, // <--- ADDED THIS
+                             RedirectAttributes redirectAttributes) throws IOException {
 
-        MultipartHttpServletRequest multipartRequest = (MultipartHttpServletRequest) request;
+        User teacher = getLoggedInUser(authentication);
+        Quiz quiz = quizRepository.findByIdAndFetchQuestionsAndOptions(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
+
+        // Security Check: Ensure the logged-in teacher owns this quiz
+        if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
+            redirectAttributes.addFlashAttribute("error", "You can only edit your own quizzes.");
+            return "redirect:/teacher/dashboard";
+        }
+
+        MultipartHttpServletRequest multipartRequest = null;
+        if (request instanceof MultipartHttpServletRequest) {
+            multipartRequest = (MultipartHttpServletRequest) request;
+        }
 
         quiz.setTitle(request.getParameter("quizTitle"));
         quiz.setSubject(quiz.getClassroom().getName());
 
         for (Question question : quiz.getQuestions()) {
+            // 1. Update Text
             String qTextParam = request.getParameter("question_" + question.getId());
             if (qTextParam != null) question.setText(qTextParam);
 
-            MultipartFile imageFile = multipartRequest.getFile("question_" + question.getId() + "_image");
-            if (imageFile != null && !imageFile.isEmpty()) {
-                question.setImage(imageFile.getBytes());
+            // 2. Update Image
+            if (multipartRequest != null) {
+                MultipartFile imageFile = multipartRequest.getFile("question_" + question.getId() + "_image");
+                if (imageFile != null && !imageFile.isEmpty()) {
+                    question.setImage(imageFile.getBytes());
+                }
             }
-            String selectedOptionIdStr = request.getParameter("correct_option_" + question.getId());
-            Long correctOptionId = (selectedOptionIdStr != null) ? Long.parseLong(selectedOptionIdStr) : -1L;
 
+            // 3. Update Options (Multiple Checkboxes)
             for (Option option : question.getOptions()) {
                 String oTextParam = request.getParameter("option_" + option.getId());
                 if (oTextParam != null) option.setText(oTextParam);
-                option.setCorrect(option.getId().equals(correctOptionId));
+
+                // Check for existence of the specific checkbox parameter
+                String isCorrectParam = request.getParameter("correct_option_" + option.getId());
+                option.setCorrect(isCorrectParam != null);
             }
         }
 
@@ -233,6 +256,28 @@ public class TeacherController {
         model.addAttribute("quiz", quiz);
         model.addAttribute("attempts", attempts);
         return "teacher/quiz-results";
+    }
+
+    @GetMapping("/quiz/toggle-status/{id}")
+    public String toggleQuizStatus(@PathVariable Long id, Authentication authentication, RedirectAttributes redirectAttributes) {
+        User teacher = getLoggedInUser(authentication);
+        Quiz quiz = quizRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid quiz Id:" + id));
+
+        // Security check
+        if (!Objects.equals(quiz.getTeacher().getId(), teacher.getId())) {
+            redirectAttributes.addFlashAttribute("error", "You can only manage your own quizzes.");
+            return "redirect:/teacher/dashboard";
+        }
+
+        // Toggle status
+        quiz.setPublished(!quiz.isPublished());
+        quizRepository.save(quiz);
+
+        String status = quiz.isPublished() ? "Opened" : "Closed";
+        redirectAttributes.addFlashAttribute("success", "Quiz '" + quiz.getTitle() + "' is now " + status);
+
+        return "redirect:/teacher/class/" + quiz.getClassroom().getId();
     }
 
     private User getLoggedInUser(Authentication authentication) {

@@ -39,7 +39,11 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
             countQuery = "SELECT COUNT(q) FROM Quiz q WHERE q.classroom.id = :classId")
     Page<Quiz> findByClassroomId(@Param("classId") Long classId, Pageable pageable);
 
-    @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions qn LEFT JOIN FETCH qn.options WHERE q.id = :id")
+    @Query("SELECT q FROM Quiz q " +
+            "LEFT JOIN FETCH q.questions qn " +
+            "LEFT JOIN FETCH qn.options " +
+            "LEFT JOIN FETCH q.classroom " +  // <--- ADD THIS LINE
+            "WHERE q.id = :id")
     Optional<Quiz> findByIdAndFetchQuestionsAndOptions(@Param("id") Long id);
 
     @Query("SELECT q FROM Quiz q LEFT JOIN FETCH q.questions WHERE q.id = :id")
@@ -50,4 +54,14 @@ public interface QuizRepository extends JpaRepository<Quiz, Long> {
             countQuery = "SELECT COUNT(q) FROM Quiz q WHERE q.classroom.id = :classId " +
                     "AND (:search IS NULL OR :search = '' OR LOWER(q.title) LIKE LOWER(CONCAT('%', :search, '%')))")
     Page<Quiz> searchByClassroomId(@Param("classId") Long classId, @Param("search") String search, Pageable pageable);
+
+    @Query("SELECT q FROM Quiz q WHERE q.classroom.id = :classId " +
+            "AND (:showAll = true OR q.published = true) " +
+            "AND (:search IS NULL OR :search = '' OR LOWER(q.title) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "ORDER BY q.id DESC")
+    List<Quiz> findForStudent(@Param("classId") Long classId,
+                              @Param("search") String search,
+                              @Param("showAll") boolean showAll);
+
+
 }

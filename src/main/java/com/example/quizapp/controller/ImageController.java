@@ -17,7 +17,6 @@ public class ImageController {
     @Autowired
     private QuestionRepository questionRepository;
 
-    // FIX: Changed return type to ResponseEntity<?> to handle both byte[] and empty responses
     @GetMapping("/image/question/{id}")
     public ResponseEntity<?> getQuestionImage(@PathVariable Long id) {
         Optional<Question> questionOpt = questionRepository.findById(id);

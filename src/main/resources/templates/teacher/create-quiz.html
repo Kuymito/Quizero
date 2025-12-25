@@ -14,24 +14,19 @@
     </div>
 
     <form th:action="@{/teacher/class/{classId}/quiz/create(classId=${classId})}" method="post" enctype="multipart/form-data" id="quizForm" class="space-y-8 bg-white p-8 rounded-xl shadow-lg border border-gray-200">
-
         <div class="p-6 bg-gray-50 rounded-lg border border-gray-200">
             <h2 class="text-xl font-semibold text-gray-700 mb-4">Quiz Details</h2>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Quiz Title</label>
-                <input type="text" name="quizTitle" required class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                <input type="text" name="quizTitle" required class="mt-1 block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm">
             </div>
         </div>
 
         <div id="questionsContainer" class="space-y-6"></div>
 
         <div class="flex justify-between items-center border-t border-gray-200 pt-6">
-            <button type="button" id="addQuestionBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">
-                + Add Question
-            </button>
-            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-md transition-colors">
-                Save Quiz
-            </button>
+            <button type="button" id="addQuestionBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors">+ Add Question</button>
+            <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-md transition-colors">Save Quiz</button>
         </div>
     </form>
 
@@ -57,9 +52,10 @@
             const reindexOptions = (container, qIndex) => {
                 const rows = container.querySelectorAll('.option-row');
                 rows.forEach((row, index) => {
-                    const radio = row.querySelector('input[type="radio"]');
+                    const checkbox = row.querySelector('input[type="checkbox"]');
                     const textInput = row.querySelector('input[type="text"]');
-                    radio.value = index;
+                    // Update names to ensure backend maps them correctly
+                    checkbox.name = `questions[${qIndex}].options[${index}].isCorrect`;
                     textInput.name = `questions[${qIndex}].options[${index}].text`;
                     textInput.placeholder = `Option ${index + 1}`;
                 });
@@ -69,12 +65,13 @@
                 const optionDiv = document.createElement('div');
                 optionDiv.className = 'option-row flex items-center space-x-2 mb-2';
 
-                const radioInput = document.createElement('input');
-                radioInput.type = 'radio';
-                radioInput.name = `questions[${qIndex}].correctOption`;
-                radioInput.value = oIndex;
-                radioInput.required = true;
-                radioInput.className = 'form-radio h-5 w-5 text-blue-600';
+                // CHANGED: Radio -> Checkbox for multiple correct answers
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                // Name format allows backend to check presence
+                checkbox.name = `questions[${qIndex}].options[${oIndex}].isCorrect`;
+                checkbox.value = 'true';
+                checkbox.className = 'form-checkbox h-5 w-5 text-green-600 rounded focus:ring-green-500';
 
                 const textInput = document.createElement('input');
                 textInput.type = 'text';
@@ -98,7 +95,7 @@
                     reindexOptions(container, qIndex);
                 };
 
-                optionDiv.appendChild(radioInput);
+                optionDiv.appendChild(checkbox);
                 optionDiv.appendChild(textInput);
                 optionDiv.appendChild(deleteBtn);
 
@@ -127,7 +124,7 @@
                     </div>
 
                     <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">Options</label>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Options (Check all correct answers)</label>
                         <div class="options-container space-y-2"></div>
                         <button type="button" class="add-option-btn mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium inline-flex items-center">
                             + Add Option
